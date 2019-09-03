@@ -13,7 +13,6 @@ setup(
   version = '0.1.0',
   description = '[NOT RELEASED] A modeller-based pipeline to generate homo-oligomers.',
   long_description = long_description,
-  long_description_content_type = 'text/x-rst',
   license='CC-BY-4.0',
   author = 'Pedro Torres, Sony Malhotra, Tom Blundell',
   author_email = 'phm34@cam.ac.uk.com',
