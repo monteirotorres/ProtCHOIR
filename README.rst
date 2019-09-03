@@ -1,4 +1,5 @@
 .. image:: ./ProtCHOIR/Contents/ProtCHOIR.svg
+
 ProtCHOIR
 ############
 
@@ -52,7 +53,7 @@ External software (must be installed separately)
 
 Note: PISA, GESAMT and MolProbity may be installed as part of the `CCP4 Software Suite`_
 
-.. _`CCP4`: http://www.ccp4.ac.uk
+.. _`CCP4 Software Suite`: http://www.ccp4.ac.uk
 
 
 Installation
