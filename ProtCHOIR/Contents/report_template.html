@@ -1,0 +1,435 @@
+<!DOCTYPE html>
+<head>
+<style>
+
+  html{
+    margin: 5%;
+  }
+
+  p{
+    margin: 0 auto;
+  }
+
+  span.small {
+    font-size: 1.1vmax;
+    padding: 2px;
+    display: inline-block
+  }
+
+  span.big {
+    font-size: 1.3vmax;
+    padding: 2px;
+    display: inline-block
+  }
+
+  span.header {
+    font-size: 1.7vmax;
+    font-weight: bold;
+    padding: 8px;
+    display: inline-block
+  }
+
+  img.header {
+    width: 60%;
+    vertical-align: text-top;
+  }
+
+  img.big {
+    width: 75%;
+    margin: 0 auto
+  }
+
+  img.huge {
+    width: 95%;
+    margin: 0 auto
+    display: block
+  }
+  img.small {
+    width: 30%;
+    margin: 0 auto
+  }
+
+  div.third {
+    width: 33%;
+    margin: 0 auto;
+    display: inline-block;
+    align-items: center;
+  }
+
+  div.bigbox{
+    margin: 1% auto;
+    text-align:left;
+    border-radius: 5%;
+    padding: 1%;
+    display: inline-block;
+    overflow-wrap: break-word;
+    word-wrap: break-word;
+    hyphens: auto;
+    font-size: 1.3vmax;
+    padding: 12px;
+    width: 95%
+  }
+
+  div.smallbox{
+    margin: 1% auto;
+    text-align:left;
+    border-radius: 5%;
+    padding: 1%;
+    display: inline-block;
+    overflow-wrap: break-word;
+    word-wrap: break-word;
+    hyphens: auto;
+    font-size: 1.1vmax;
+    padding: 12px;
+  }
+  div.vertical-align {
+    display: inline-flex;
+    align-items: center;
+  }
+
+  table {
+    font-family: arial, sans-serif;
+    font-size: 1.1vmax;
+    border-collapse: collapse;
+    width: 30%;
+    margin: 0 auto
+  }
+
+  th {
+    border: 1px solid #dddddd;
+    text-align: left;
+    font-weight: bold;
+    padding: 4px;
+  }
+
+  td {
+    border: 1px solid #dddddd;
+    text-align: left;
+    padding: 4px;
+  }
+
+  tr:nth-child(even) {
+    background-color: #dddddd;
+  }
+
+  @media print{
+    html{
+      margin: 0%;
+    }
+
+    p{
+      margin: 0 auto;
+    }
+
+    span.small {
+      font-size: 9px;
+      padding: 2px;
+      display: inline-block
+    }
+
+    span.big {
+      font-size: 12px;
+      padding: 2px;
+      display: inline-block
+    }
+
+    span.header {
+      font-size: 16px;
+      font-weight: bold;
+      padding: 8px;
+      display: inline-block
+    }
+
+    img.header {
+      width: 60%;
+      vertical-align: text-top;
+    }
+
+    img.big {
+      width: 70%;
+      margin: 0 auto
+    }
+
+    img.huge {
+      width: 95%;
+      margin: 0 auto;
+      display: block
+    }
+    img.small {
+      width: 30%;
+      margin: 0 auto
+    }
+
+    div.third {
+      width: 33%;
+      margin: 0 auto;
+      display: inline-block;
+      align-items: center;
+    }
+
+    div.bigbox{
+      margin: 1% auto;
+      text-align:left;
+      border-radius: 15px;
+      padding: 1%;
+      display: inline-block;
+      overflow-wrap: break-word;
+      word-wrap: break-word;
+      hyphens: auto;
+      font-size: 12px;
+      padding: 12px;
+      width: 95%
+    }
+
+    div.smallbox{
+      margin: 1% auto;
+      text-align:left;
+      border-radius: 15px;
+      padding: 1%;
+      display: inline-block;
+      overflow-wrap: break-word;
+      word-wrap: break-word;
+      hyphens: auto;
+      font-size: 8px;
+      padding: 12px;
+    }
+    div.vertical-align {
+      display: inline-flex;
+      align-items: center;
+    }
+
+    table {
+      font-family: arial, sans-serif;
+      font-size: 9px;
+      border-collapse: collapse;
+      width: 30%;
+      margin: 0 auto
+    }
+
+    th {
+      border: 1px solid #dddddd;
+      text-align: left;
+      font-weight: bold;
+      padding: 2px;
+    }
+
+    td {
+      border: 1px solid #dddddd;
+      text-align: left;
+      padding: 2px;
+    }
+
+    tr:nth-child(even) {
+      background-color: #dddddd;
+    }
+
+    .no-print, .no-print *
+    {
+        display: none !important;
+    }
+  }
+</style>
+
+<title>ProtCHOIR Report</title>
+
+<div class="vertical-align" style="border-bottom: 3px solid black; width: 100%">
+  <img class=header src="{{ protchoir_logo }}" alt="ProtCHOIR">
+  <div class="no-print" style="display: inline-block; width: 30%; align-items: center; text-align: center">
+    <button type="button" onClick="window.print()" style="background: white; border-radius: 8px">
+      <span class="big" style="font-weight: bold; display: inline-block; padding: 3px">Print Report</span>
+    </button>
+  </div>
+</div>
+
+</head>
+
+
+<body>
+	<header>
+
+	</header>
+	<section  style="border-bottom: 1px solid black;text-align:center " id="protomer analysis">
+    <div style="border-bottom: 3px solid black">
+    <span class=header style = 'text-align: center'>Protomer Analysis</span>
+    </div>
+    <div class="vertical-align" style="border-bottom: 1px solid black">
+      {% if report['runtime_arguments']['sequence_mode'] == True  %}
+        <div class="bigbox" style="width: 55%; background: #bbedf2">
+          <span><b>Input Filename:</b> {{report['input_filename']}}</span>
+          <br>
+          <span class="header"><b>ProtCHOIR was run in sequence mode. No structural data available for the protomer.</b></span>
+        </div>
+      {% else %}
+        <div style="width: 38%">
+          <span class="header">Protomer Data</span>
+          <div class="bigbox" style="width: 90%; background: #bbedf2">
+            <span><b>Input Filename:</b> {{report['input_filename']}}</span>
+            <br>
+            <span><b>Residues:</b> {{report['protomer_residues']}}</span>
+            <br>
+            <span><b>Total solvent-exposed area:</b> {{report['protomer_exposed_area']}}</span>
+            <br>
+            <span><b>Hydrophobic exposed area*:</b> {{report['protomer_hydrophobic_area']}}</span>
+            <br>
+            <span><b>Conserved exposed area**:</b> {{report['protomer_conserved_area']}}</span>
+            <br>
+            <span><b>Molprobity clashscore:</b> {{report['protomer_clashscore']}}</span>
+            <br>
+            <span><b>Molprobity score:</b> {{report['protomer_molprobity']}}</span>
+          </div>
+
+          <div style = "display: inline-block; width: 100%; text-align: left;">
+            <span class=small><p>*Hydrophobic residues are: MET, CYS, ILE, LEU, TYR, PHE and TRP.<br>
+              **Residues are considered conserved if relative entropy Z-score is > 1.</p></span>
+          </div>
+        </div>
+        <div class=third>
+          <span class=small><p><b>Input Protomer</b><br>(with projected sequence relative entropy Z-scores)</p></span>
+          <img class=huge src="{{report['protomer_figure']}}" alt="Protomer Conservation Cartoon">
+        </div>
+      {% endif %}
+      <div class=smallbox style="width: 25%; background: #f7f4ba" >
+        <span><b>Runtime Arguments:</b></span>
+        <br>
+        {% for key, value in report['runtime_arguments'].items() %}
+        <span>{{key}}: {{value}}</span>
+        <br>
+        {% endfor %}
+      </div>
+      <br>
+    </div>
+    <div style="border-bottom: 1px solid black">
+      <span class=header>Input protomer surface exposure plot</span>
+    </div>
+      <img class=huge src="{{report['protomer_plot']}}" alt="Protomer analysis">
+	</section>
+	<section style="border-bottom: 3px solid black; text-align: center" id="oligomeric templates">
+    <div style="border-bottom: 1px solid black">
+      <span class=header>Oligomeric Templates</span>
+    </div>
+    <div class="vertical-align" style="width: 100%">
+      <div style="width: 33%">
+        <span class="header">Top PSI-Blast hits</span>
+        <table style="width: 100%">
+          <tr>
+            <th>Hit</th>
+            <th>ch.</th>
+            <th>pid</th>
+            <th>cov</th>
+            {% if report['runtime_arguments']['sequence_mode'] == True %}
+              <th>score</th>
+            {% else %}
+              <th>qscore</th>
+            {% endif %}
+            <th>Tot. ch.</th>
+            <!--<th>Homo. ch.</th>-->
+            <th>Rel. ch.</th>
+            <!--<th>Het.</th>-->
+          </tr>
+          {% for hit in report['hits'] %}
+          <tr>
+            <td>{{report['hits'][hit]['hit_code']}}</td>
+            <td>{{report['hits'][hit]['chain']}}</td>
+            <td>{{report['hits'][hit]['id']}}</td>
+            <td>{{report['hits'][hit]['coverage']}}</td>
+            {% if report['runtime_arguments']['sequence_mode'] == True %}
+              <td>{{report['hits'][hit]['score']}}</td>
+            {% else %}
+              <td>{{report['hits'][hit]['qscore']}}</td>
+            {% endif %}
+            <td>{{report['hits'][hit]['total_chains']}}</td>
+            <!--<td>{{report['hits'][hit]['initial_homo_chains']}}</td>-->
+            <td>{{report['hits'][hit]['final_homo_chains']}}</td>
+            <!--<td>{{report['hits'][hit]['hetero_complex']}}</td>-->
+          </tr>
+          {% endfor %}
+        </table>
+        <div style="display: inline-block; width: 100%; text-align: left;">
+          <span class="big" style="font-weight: bold"> Selected template*: {{report['best_template']}}</span>
+          <br>
+          {% if report['runtime_arguments']['sequence_mode'] == False %}
+            <span class="small">*based on average GESAMT q-score</span>
+          {% else %}
+            <span class="small">*based on PSI-Blast alignment score</span>
+          {% endif %}
+        </div>
+      </div>
+      <div class=third>
+        <span class=header>Template Structure: {{report['best_template']}}</span>
+        <img class=huge src="{{report['template_figure']}}" alt="Template Oligomer">
+      </div>
+      <img class=small src="{{report['topology_figure']}}" alt="Template Topology">
+    </div>
+    <br>
+    <br>
+	</section>
+	<section style="text-align: center; border-bottom: 1px solid black" id="model analysis">
+    <div style="border-bottom: 3px solid black">
+      <span class=header>Model Analysis</span>
+    </div>
+    <div class="vertical-align" style="border-bottom: 1px solid black">
+      <div style="width: 33%">
+        <span class="header">Assemblied Protomer Data</span>
+        <div class="bigbox" style="background: #c4ed9a">
+          <span><b>Total solvent-exposed area*:</b> {{report['assemblied_protomer_exposed_area']}} {% if report['runtime_arguments']['sequence_mode'] == False %}(-{{report['exposed_area_reduction']}}%){% endif %}</span>
+          <br>
+          <span><b>Hydrophobic exposed area*:</b> {{report['assemblied_protomer_hydrophobic_area']}} {% if report['runtime_arguments']['sequence_mode'] == False %}(-{{report['hydrophobic_area_reduction']}}%){% endif %}</span>
+          <br>
+          <span><b>Conserved exposed area*:</b> {{report['assemblied_protomer_conserved_area']}} {% if report['runtime_arguments']['sequence_mode'] == False %}(-{{report['conserved_area_reduction']}}%){% endif %}</span>
+          <br>
+          <span><b>RMSD to template**:</b> {{report['gesamt_rmsd']}}</span>
+          <br>
+          <span><b>Q-score to template**:</b> {{report['gesamt_qscore']}}</span>
+          <br>
+          <span><b>Molprobity clashscore:</b> {{report['model_clashscore']}}</span>
+          <br>
+          <span><b>Molprobity score:</b> {{report['model_molprobity']}}</span>
+        </div>
+        <div style = "display: inline-block; width: 100%; text-align: left">
+          <span class=small><p>*Per protomer. % compared to unassembled protomer.<br>
+            **Data obtained using GESAMT.</p></span>
+        </div>
+      </div>
+      <div class=third>
+        <span class=header>Model Quality - Front View</span>
+        <img class=huge src="{{report['model_figures'][1]}}" alt="Model Oligomer Putty 0°">
+      </div>
+      <img class=small src="{{report['molprobity_radar']}}" alt="Molprobity Comparison Radar Plot">
+    </div>
+    <br>
+    <section style="text-align: center; border-bottom: 3px solid black" id="model structural quality">
+      <div style="border-bottom: 1px solid black">
+        <span class=header>Back and lateral views</span>
+      </div>
+    <div class="vertical-align" style="border-bottom: 1px solid black">
+      <div class=third>
+        <span class=header>90°</span>
+        <img class=huge src="{{report['model_figures'][2]}}" alt="Model Oligomer Putty 90°">
+      </div>
+      <div class=third>
+        <span class=header>180°</span>
+        <img class=huge src="{{report['model_figures'][3]}}" alt="Model Oligomer Putty 180°">
+      </div>
+      <div class=third>
+        <span class=header>270°</span>
+        <img class=huge src="{{report['model_figures'][4]}}" alt="Model Oligomer Putty 270°">
+      </div>
+    </div>
+    <div style="border-bottom: 1px solid black">
+      <span class=header>Assemblied protomer surface exposure plot</span>
+    </div>
+    <br>
+    <img class=huge src="{{report['assemblied_protomer_plot']}}" alt="Protomer analysis">
+    <br>
+    <br>
+  </section>
+  <section style="text-align: center" id="Interface analysis">
+    <div style="border-bottom: 3px solid black">
+      <span class=header>Model Interfaces Analysis</span>
+    </div>
+    <img class=big src="{{report['comparison_plots']}}" alt="Interface Comparison Plots">
+    <br>
+    <br>
+	</section>
+</body>
+</html>
