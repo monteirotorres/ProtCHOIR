@@ -10,7 +10,7 @@ with open(path.join(here, 'README.rst'), encoding='utf-8') as f:
 setup(
   name = 'ProtCHOIR',
   packages = ['ProtCHOIR'],
-  version = '0.1.2',
+  version = '0.1.6',
   description = '[NOT RELEASED] A modeller-based pipeline to generate homo-oligomers.',
   long_description = long_description,
   license='CC-BY-4.0',
@@ -28,23 +28,22 @@ setup(
   py_modules=[
       'ProtCHOIR.ProtCHOIR',
       'ProtCHOIR.Toolbox',
+      'ProtCHOIR.__main__',
+      'ProtCHOIR.UpdateDatabases',
+      'ProtCHOIR.MakeOligomer',
+      'ProtCHOIR.AnalyseOligomer',
+      'ProtCHOIR.AnalyseProtomer',
       'ProtCHOIR.Initialise'],
   entry_points={
       'console_scripts': [
-          'ProtCHOIR = ProtCHOIR.__main__.py:main']},
+          'ProtCHOIR = ProtCHOIR.__main__:main']},
   install_requires=[
-      'markdown',
-      'biopandas',
       'pandas',
       'progressbar2',
-      'pathlib2',
       'biopython',
       'parasail',
       'matplotlib',
       'modeller',
-      'pickle',
-      'textwrap',
-      'gzip',
       'numpy',
       'jinja2',
       'networkx'])
