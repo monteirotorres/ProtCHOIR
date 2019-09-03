@@ -226,7 +226,7 @@ parser.add_argument('--conf',
                     dest='config_file',
                     type=str,
                     metavar='',
-                    help='File containing the paths of pdbs to be oligomerized')
+                    help='Configuration file containing external executable paths')
 
 initial_args = parser.parse_args()
 
@@ -341,13 +341,13 @@ Amino acids background frequencies retrieved from:
 CAPRA, J. A.; SINGH, M. Predicting functionally important residues from sequence
 conservation. Bioinformatics, 2007.
 '''
-
+True and False
 # Initialise
 ###############################################################################
 print_welcome_message()
 
 # Retrieve the paths from provided configuration file
-if not initial_args.config_file or not os.path.isfile(initial_args.config_file):
+if (not initial_args.config_file or not os.path.isfile(initial_args.config_file)) and not os.path.isfile('CHOIR.cfg'):
     print('ProtCHOIR configuration file not found in the provided path')
     create_config = input('Do you wish to create it? (y/n)')
     if create_config == 'y' or create_config == 'Y' or create_config == 'YES' or create_config == 'yes' or create_config == 'Yes':
@@ -355,27 +355,34 @@ if not initial_args.config_file or not os.path.isfile(initial_args.config_file):
         quit()
     else:
         print('\n\nNo positive confirmation, please provide a valid configuration file.\n')
-        exit()
-else:
-    for line in open(initial_args.config_file, 'r'):
-        if line.startswith('pymol_exe'):
-            pymol_exe = line.split('=')[1].strip()
-        if line.startswith('pisa_exe'):
-            pisa_exe = line.split('=')[1].strip()
-        if line.startswith('gesamt_exe'):
-            gesamt_exe = line.split('=')[1].strip()
-        if line.startswith('molprobity_exe'):
-            molprobity_exe = line.split('=')[1].strip()
-        if line.startswith('psiblast_exe'):
-            psiblast_exe = line.split('=')[1].strip()
-        if line.startswith('blastdbcmd_exe'):
-            blastdbcmd_exe = line.split('=')[1].strip()
-        if line.startswith('makeblastdb_exe'):
-            makeblastdb_exe = line.split('=')[1].strip()
-        if line.startswith('mafft_exe'):
-            mafft_exe = line.split('=')[1].strip()
-        if line.startswith('choirdb'):
-            choirdb = line.split('=')[1].strip()
+        quit()
+
+elif not initial_args.config_file and os.path.isfile('CHOIR.cfg'):
+    config_file = 'CHOIR.cfg'
+
+elif initial_args.config_file:
+    assert os.path.isfile(initial_args.config_file), clrs['r']+'\n\n Not able to find configuration file.\n\n Does "'+initial_args.config_file+'" exist?'+clrs['n']
+    config_file = initial_args.config_file
+
+for line in open(config_file, 'r'):
+    if line.startswith('pymol_exe'):
+        pymol_exe = line.split('=')[1].strip()
+    if line.startswith('pisa_exe'):
+        pisa_exe = line.split('=')[1].strip()
+    if line.startswith('gesamt_exe'):
+        gesamt_exe = line.split('=')[1].strip()
+    if line.startswith('molprobity_exe'):
+        molprobity_exe = line.split('=')[1].strip()
+    if line.startswith('psiblast_exe'):
+        psiblast_exe = line.split('=')[1].strip()
+    if line.startswith('blastdbcmd_exe'):
+        blastdbcmd_exe = line.split('=')[1].strip()
+    if line.startswith('makeblastdb_exe'):
+        makeblastdb_exe = line.split('=')[1].strip()
+    if line.startswith('mafft_exe'):
+        mafft_exe = line.split('=')[1].strip()
+    if line.startswith('choirdb'):
+        choirdb = line.split('=')[1].strip()
 
 # Root directory for CHOIR module
 choir_path = os.path.dirname(os.path.abspath( __file__ ))
