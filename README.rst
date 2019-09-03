@@ -1,4 +1,4 @@
-.. image:: ./ProtCHOIR/Contents/ProtCHOIR.svg
+.. image:: https://raw.githubusercontent.com/monteirotorres/ProtCHOIR/master/ProtCHOIR/Contents/ProtCHOIR.svg?sanitize=true
 
 ProtCHOIR
 ############
