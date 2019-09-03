@@ -1,5 +1,7 @@
 .. image:: https://raw.githubusercontent.com/monteirotorres/ProtCHOIR/master/ProtCHOIR/Contents/ProtCHOIR.svg?sanitize=true
 
+.. image:: https://zenodo.org/badge/205372962.svg
+
 ProtCHOIR
 ############
 
