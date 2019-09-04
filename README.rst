@@ -1,6 +1,7 @@
 .. image:: https://raw.githubusercontent.com/monteirotorres/ProtCHOIR/master/ProtCHOIR/Contents/ProtCHOIR.svg?sanitize=true
 
 .. image:: https://zenodo.org/badge/205372962.svg
+   :target: https://zenodo.org/badge/latestdoi/205372962
 
 ProtCHOIR
 ############
@@ -18,7 +19,7 @@ The following packages and external programs are used by ProtCHOIR scripts and m
 Python packages
 ===============
 
-  - progressbar
+  - progressbar2
   - pandas
   - biopython
   - pathlib
@@ -28,9 +29,6 @@ Python packages
   - jinja2
   - numpy
   - matplotlib
-  - pickle
-  - gzip
-  - textwrap
 
 
 External software (must be installed separately)
