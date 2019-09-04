@@ -87,7 +87,7 @@ After the initial database set-up, you may run the program normally via command 
 
 :code:`ProtCHOIR -v -f protomer.pdb --conf conf_file`
 
-To generate a full html report with detailed model analysis as output run the program with:
+To generate a full html report with detailed model analysis as output, run the program with:
 
 :code:`ProtCHOIR -v -f protomer.pdb --generate-report --conf conf_file`
 

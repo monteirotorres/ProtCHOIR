@@ -295,13 +295,16 @@ def split_states(structure):
     return new_structure, chain_correspondence_dict
 
 
-def split_chains(structure, outdir):
+def split_chains(pdb_name, structure, outdir):
     chains = structure.get_chains()
+    single_chain_files = []
     for chain in chains:
         chain_id = chain.id
-        single_chain_file = os.path.join(outdir, chain_id+".pdb")
+        single_chain_file = os.path.join(outdir, pdb_name+'_'+chain_id+".pdb")
         io.set_structure(structure)
         io.save(single_chain_file, SelectChain(chain_id))
+        single_chain_files.append(single_chain_file)
+    return single_chain_files[0]
 
 
 def count_chains(structure):

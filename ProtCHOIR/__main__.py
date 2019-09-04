@@ -142,13 +142,13 @@ def main():
         # Show arguments used and create CHOIR.conf
         pctools.print_section(0, "Runtime Arguments")
         runtime_arguments = {}
-        choir_conf = os.path.join(outdir, "CHOIR.conf")
-        with open(choir_conf, 'w') as f:
+        choir_args = os.path.join(outdir, "CHOIR.args")
+        with open(choir_args, 'w') as f:
             for name, value in vars(args).items():
                 runtime_arguments[name] = value
                 print(name+"="+str(value))
                 f.write(name+"="+str(value)+"\n")
-        print('\nConfiguration file written to: '+clrs['g']+os.path.basename(choir_conf)+clrs['n']+'\n')
+        print('\nRuntime parameters written to: '+clrs['g']+os.path.basename(choir_args)+clrs['n']+'\n')
 
         # Initialize report
         report = {}
@@ -220,6 +220,8 @@ def main():
                                 shutil.rmtree(f)
                             elif os.path.isfile(f):
                                 os.remove(f)
+
+        print('FINISHED AT: '+datetime.now().strftime("%d-%m-%Y %H:%M"))
 
 
 # Execute

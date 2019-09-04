@@ -594,6 +594,8 @@ def analyze_protomer(input_file, report, args):
         else:
             print('Structure '+clrs['p']+pdb_name+clrs['n']+' contains '+clrs['y']+str(nchains)+clrs['n']+' chains.')
             print('Will consider only first chain')
+            input_file = pctools.split_chains(pdb_name, structure, workdir)
+            pdb_name, structure, nchains = pctools.parse_any_structure(input_file)
 
         # Run PISA for monomer and get surface residues
         print('\nRunning '+clrs['b']+'PISA'+clrs['n']+' for '+clrs['p']+pdb_name+clrs['n']+'...')

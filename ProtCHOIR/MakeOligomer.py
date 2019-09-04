@@ -7,6 +7,7 @@ import itertools
 import collections
 import Bio.PDB as bpp
 import ProtCHOIR.Toolbox as pctools
+from importlib import import_module
 from ProtCHOIR.Initialise import *
 
 # pdb_file = '/data/choirdb/pdb1/c8/2c8i.pdb1.gz'
@@ -326,7 +327,7 @@ def run_modeller(genmodel_file):
     genmodel_log = os.path.join(workdir,script_name+'.log')
     temp = sys.stdout
     sys.stdout = open(genmodel_log, 'w')
-    __import__(script_name)
+    import_module(genmodel_file)
     sys.stdout.close()
     sys.stdout = temp
     print('Done running '+clrs['b']+'MODELLER'+clrs['n']+'\n')
