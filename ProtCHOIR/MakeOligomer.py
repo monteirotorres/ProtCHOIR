@@ -325,11 +325,11 @@ def run_modeller(genmodel_file):
     print('Running '+clrs['b']+'MODELLER'+clrs['n']+' for '+clrs['y']+os.path.basename(genmodel_file)+clrs['n']+'\n')
     script_name = os.path.basename(genmodel_file).split('.py')[0]
     genmodel_log = os.path.join(workdir,script_name+'.log')
-    print('hellooooooooo'+os.getcwd())
+    spec = importlib.util.spec_from_file_location("genmodel", genmodel_file)
+    genmodel_module = importlib.util.module_from_spec(spec)
     temp = sys.stdout
     sys.stdout = open(genmodel_log, 'w')
-    spec = importlib.util.spec_from_file_location("genmodel", genmodel_file)
-    importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(genmodel_module)
     sys.stdout.close()
     sys.stdout = temp
     print('Done running '+clrs['b']+'MODELLER'+clrs['n']+'\n')
