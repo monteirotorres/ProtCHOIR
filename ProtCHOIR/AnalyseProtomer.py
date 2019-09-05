@@ -547,11 +547,6 @@ def analyse_hits(hit):
 
 # Main Function
 ###############################################################################
-# outdir = '/home/torres/work/protchoir/A0R4G7'
-# pdb = os.path.join(outdir, 'A0R4G7.pdb')
-# ignorevivace = 1
-# max_candidates = 5
-# verb = 1
 def analyze_protomer(input_file, report, args):
     global workdir
     global pdb_name
@@ -570,10 +565,6 @@ def analyze_protomer(input_file, report, args):
         filename = os.path.basename(input_file)
         report['input_filename'] = os.path.basename(filename)
         print('Will now begin analysis of '+clrs['p']+filename+clrs['n']+'\n')
-        # tmpdir = os.path.join(workdir, 'tmp')
-        # if os.path.isdir(tmpdir):
-        #     shutil.rmtree(tmpdir)
-        # os.mkdir(tmpdir)
         print('Loading structure...')
         pattern = 'REMARK   6 TEMPLATE:'
         templates_ids = {}

@@ -1067,28 +1067,11 @@ def create_pisa_conf(confdir, id):
     os.mkdir(pisa_tmp_dir)
     return pisa_cfg_file, pisa_tmp_dir
 
-# # To use outside the program
-# import os
-# import jinja2
-# import pickle
-# with open('/home/phm34/work/protchoir/1gk8/CHOIR_Report.pickle', 'rb') as p:
-#     report = pickle.load(p)
-# with open('/home/phm34/work/protchoir/1gk8/CHOIR_Args.pickle', 'rb') as p:
-#     args = pickle.load(p)
-# choir_path = '/home/phm34/GoogleDrive/python/PythonicWare/ProtCHOIR/ProtCHOIR'
-# clrs = {'r': "\033[1;91m",
-#         'g': "\033[1;92m",
-#         'y': "\033[1;93m",
-#         'b': "\033[1;94m",
-#         'p': "\033[1;95m",
-#         'c': "\033[1;96m",
-#         'n': "\033[1;0m"}
-# # ----------------------------
-
 
 def html_report(report, args):
     html_out = report['model_oligomer_name']+'_CHOIR_Report.html'
     templateLoader = jinja2.FileSystemLoader(searchpath=os.path.join(choir_path, 'Contents'))
+    print(choir_path)
     templateEnv = jinja2.Environment(loader=templateLoader)
     report_template = "report_template.html"
     template = templateEnv.get_template(report_template)

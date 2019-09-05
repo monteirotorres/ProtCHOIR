@@ -6,8 +6,8 @@ import gzip
 import itertools
 import collections
 import Bio.PDB as bpp
+import importlib.util
 import ProtCHOIR.Toolbox as pctools
-from importlib import import_module
 from ProtCHOIR.Initialise import *
 
 # pdb_file = '/data/choirdb/pdb1/c8/2c8i.pdb1.gz'
@@ -325,9 +325,11 @@ def run_modeller(genmodel_file):
     print('Running '+clrs['b']+'MODELLER'+clrs['n']+' for '+clrs['y']+os.path.basename(genmodel_file)+clrs['n']+'\n')
     script_name = os.path.basename(genmodel_file).split('.py')[0]
     genmodel_log = os.path.join(workdir,script_name+'.log')
+    print('hellooooooooo'+os.getcwd())
     temp = sys.stdout
     sys.stdout = open(genmodel_log, 'w')
-    import_module(genmodel_file)
+    spec = importlib.util.spec_from_file_location("genmodel", genmodel_file)
+    importlib.util.module_from_spec(spec)
     sys.stdout.close()
     sys.stdout = temp
     print('Done running '+clrs['b']+'MODELLER'+clrs['n']+'\n')
@@ -336,12 +338,6 @@ def run_modeller(genmodel_file):
 # Main Function
 ###############################################################################
 def make_oligomer(input_file, largest_oligo_complexes, report, args, residue_index_mapping=None):
-    # input_file = '/home/torres/work/protchoir/ml0002/ml0002_CHOIR_MonomerSequence.fasta'
-    # with open('/home/torres/work/protchoir/ml0002/CHOIR_OligoComplexes.pickle', 'rb') as p:
-    #     largest_oligo_complexes = pickle.load(p)
-    # with open('/home/torres/work/protchoir/ml0002/CHOIR_args.pickle', 'rb') as p:
-    #     args = pickle.load(p)
-    # args.sequence_mode = True
     global workdir
     global input_name
     global verbosity
