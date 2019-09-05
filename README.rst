@@ -41,6 +41,7 @@ External software (must be installed separately)
   - `PISA`_
   - `GESAMT`_
   - `Molprobity`_
+  - `Modeller`_
 
 
 .. _`PyMol`: https://sourceforge.net/projects/pymol/
@@ -50,6 +51,7 @@ External software (must be installed separately)
 .. _`PISA`: http://www.ccp4.ac.uk
 .. _`GESAMT`: http://www.ccp4.ac.uk
 .. _`Molprobity`: http://www.ccp4.ac.uk
+.. _`Modeller`: https://salilab.org/modeller/
 
 Note: PISA, GESAMT and MolProbity may be installed as part of the `CCP4 Software Suite`_
 
