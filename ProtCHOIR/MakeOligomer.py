@@ -140,10 +140,11 @@ def alignment_from_sequence(best_oligo_template, renamed_chains_file, input_fast
         f.write('aln.align2d()\n')
         f.write("aln.write(file='"+temp_out+"', alignment_format='FASTA')")
     alignment_log = genali_file.replace('.py', '.log')
-    script_name = os.path.basename(genali_file).split('.py')[0]
+    spec = importlib.util.spec_from_file_location("genmodel", genali_file)
+    genali_module = importlib.util.module_from_spec(spec)
     temp = sys.stdout
     sys.stdout = open(alignment_log, 'w')
-    __import__(script_name)
+    spec.loader.exec_module(genali_module)
     sys.stdout.close()
     sys.stdout = temp
     with open(temp_out, 'r') as infile, open(fasta_out, 'w') as outfile:

@@ -24,7 +24,6 @@ Python packages
   - biopython
   - pathlib
   - parasail
-  - modeller
   - networkx
   - jinja2
   - numpy

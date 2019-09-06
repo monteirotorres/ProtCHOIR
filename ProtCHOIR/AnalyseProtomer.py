@@ -597,19 +597,36 @@ def analyze_protomer(input_file, report, args):
         residue_index_mapping = pctools.map_residue_index(protomer_surface_residues)
 
 
-        # Run Molprobity for monomer
-        protomer_molprobity = pctools.run_molprobity(input_file, args)
-        report['protomer_molprobity'] = protomer_molprobity['molprobity_score']
-        report['protomer_clashscore'] = protomer_molprobity['clashscore']
-
         # Extract sequence of (first) chain in structure
         nchains, seqs, chain_ids = pctools.extract_seqs(structure, 0)
         sequence = seqs[0][1]
         report['protomer_residues'] = str(len(sequence))
         fasta_file = write_fasta(sequence)
 
+        # If not a Vivace model, Use PSI-BLAST to search homodb and return hits
+        pctools.print_subsection('1[b]', 'Oligomeric homologues search')
+        if vivacemodel is False:
+            hits = blast_protomer(fasta_file, homoblast, max_candidates, 8, 8, args.verbosity)
+            if not hits:
+                print('PSI-BLAST found NO hits in Homo-Oligomeric database')
+                return None
+            else:
+                for hit in hits:
+                    hit_code, hit_chain = hit.split(':')
+                    print('\nHit '+clrs['p']+hit_code.upper()+clrs['n']+', Chain: '+clrs['y']+hit_chain+clrs['n']+', Score: '+clrs['c']+str(hits[hit][0])+clrs['n']+', %id: '+clrs['c']+str(hits[hit][1])+clrs['n']+', Coverage: '+clrs['c']+str(hits[hit][2])+clrs['n'])
+        else:
+            hits = parse_vivace_model(sequence, input_file)
+            if not hits:
+                print('No Vivace-determined hits were found in the homo-oligomeric database. Try using --ignore-vivace.\n')
+                return None
+
+        # Run Molprobity for monomer
+        protomer_molprobity = pctools.run_molprobity(input_file, args)
+        report['protomer_molprobity'] = protomer_molprobity['molprobity_score']
+        report['protomer_clashscore'] = protomer_molprobity['clashscore']
+
         if not args.skip_conservation:
-            pctools.print_subsection('1[b]', 'Sequence conservation analysis')
+            pctools.print_subsection('1[c]', 'Sequence conservation analysis')
             # Use PSI-BLAST to search UniRef50 and return hits
             uni50hits = blast_protomer(fasta_file, uniref50, 50, 1, 8, args.verbosity)
             if not uni50hits:
@@ -625,23 +642,7 @@ def analyze_protomer(input_file, report, args):
                 monomer_conservation = map_conservation(structure, z_entropies)
                 report['protomer_figure'] = pctools.pymol_screenshot_mono(monomer_conservation, z_entropies, args)
         else:
-            print(clrs['y']+"Skipping section 1[b] - Sequence conservation analysis"+clrs['n']+"\n")
-
-        # If not a Vivace model, Use PSI-BLAST to search homodb and return hits
-        pctools.print_subsection('1[c]', 'Oligomeric homologues search')
-        if vivacemodel is False:
-            hits = blast_protomer(fasta_file, homoblast, max_candidates, 8, 8, args.verbosity)
-            if not hits:
-                print('PSI-BLAST found NO hits in Homo-Oligomeric database')
-            else:
-                for hit in hits:
-                    hit_code, hit_chain = hit.split(':')
-                    print('\nHit '+clrs['p']+hit_code.upper()+clrs['n']+', Chain: '+clrs['y']+hit_chain+clrs['n']+', Score: '+clrs['c']+str(hits[hit][0])+clrs['n']+', %id: '+clrs['c']+str(hits[hit][1])+clrs['n']+', Coverage: '+clrs['c']+str(hits[hit][2])+clrs['n'])
-        else:
-            hits = parse_vivace_model(sequence, input_file)
-            if not hits:
-                print('No Vivace-determined hits were found in the homo-oligomeric database. Try using --ignore-vivace.\n')
-                return None
+            print(clrs['y']+"Skipping section 1[c] - Sequence conservation analysis"+clrs['n']+"\n")
 
     elif args.sequence_mode is True:
         pctools.print_section(1, 'PROTOMER ANALYSIS - SEQUENCE MODE')
@@ -667,7 +668,14 @@ def analyze_protomer(input_file, report, args):
                 print('Will consider only first chain')
         vivacemodel = False
 
+        pctools.print_subsection('1[b]', 'Oligomeric homologues search')
+        hits = blast_protomer(fasta_file, homoblast, max_candidates, 8, 8, args.verbosity)
+        if not hits:
+            print('PSI-BLAST found NO hits in Homo-Oligomeric database')
+            return None
+
         if not args.skip_conservation:
+            pctools.print_subsection('1[c]', 'Sequence conservation analysis')
             # Use PSI-BLAST to search UniRef50 and return hits
             uni50hits = blast_protomer(fasta_file, uniref50, 50, 1, 8, args.verbosity)
             if not uni50hits:
@@ -681,12 +689,9 @@ def analyze_protomer(input_file, report, args):
                 z_entropies = calc_z_scores(entropies)
                 report['protomer_plot'] = pctools.plot_entropy_only(pdb_name, entropies, z_entropies, args)
         else:
-            print(clrs['y']+"Skipping section 1[b] - Sequence conservation analysis"+clrs['n']+"\n")
+            print(clrs['y']+"Skipping section 1[c] - Sequence conservation analysis"+clrs['n']+"\n")
 
-        pctools.print_subsection('1[c]', 'Oligomeric homologues search')
-        hits = blast_protomer(fasta_file, homoblast, max_candidates, 8, 8, args.verbosity)
-        if not hits:
-            print('PSI-BLAST found NO hits in Homo-Oligomeric database')
+
 
     # Analyse hits
     report['hits'] = {}
