@@ -41,6 +41,7 @@ External software (must be installed separately)
   - `GESAMT`_
   - `Molprobity`_
   - `Modeller`_
+  - `TMHMM`_
 
 
 .. _`PyMol`: https://sourceforge.net/projects/pymol/
@@ -51,6 +52,7 @@ External software (must be installed separately)
 .. _`GESAMT`: http://www.ccp4.ac.uk
 .. _`Molprobity`: http://www.ccp4.ac.uk
 .. _`Modeller`: https://salilab.org/modeller/
+.. _`TMHMM`: http://www.cbs.dtu.dk/cgi-bin/nph-sw_request?tmhmm
 
 Note: PISA, GESAMT and MolProbity may be installed as part of the `CCP4 Software Suite`_
 
@@ -73,6 +75,8 @@ If that is the first time you are running ProtCHOIR and you do not provide a con
 This configuration file simply has the paths to all the external software that are necessary.
 
 The file also contains the path to a locally generated database (referred to as "choirdb") in which it will look for possible homo-oligomeric proteins to serve as templates for modelling.
+
+Make sure that the directory to which the choirdb variable is pointing actually exists.
 
 The choirdb must be created locally and is a lengthy process whose total duration will depend on the processing capabilities of your machine. In the process, the whole pdb database will be downloaded, analysed and sorted in the expected directories.
 

@@ -97,10 +97,14 @@ def create_choir_conf():
         # MAFFT Executable
         mafft_exe = /usr/bin/mafft
 
+        # TMHMM-2.0 executable
+        tmhmm2_exe = /opt/tmhmm-2.0c/bin/tmhmm
+
         # Root directory for the ProtCHOIR Database
         choirdb = /data1/choirdb"""))
 
-    print('Configuration file created, please edit its contents to match your environment')
+    print(clrs['g']+'Configuration file created!'+clrs['n']+' Please'+clrs['y']+' EDIT ITS CONTENTS '+clrs['n']+'to match your environment and run ProtCHOIR again.')
+
 
 # Define Global Variables
 ###############################################################################
@@ -198,6 +202,11 @@ parser.add_argument('--symmetry',
                     default=False,
                     help='Run Modeller with symmetry constraints for all chains.WARNING: Enforcing symmetry might take a very long time!')
 
+parser.add_argument('--repeat-optimization',
+                    dest='repeat_opt',
+                    type=int, default=0,
+                    help='Defines how many times the Modeller optimization protocol should be executed')
+
 parser.add_argument('--generate-report',
                     dest='generate_report',
                     action='store_true',
@@ -206,9 +215,8 @@ parser.add_argument('--generate-report',
 
 parser.add_argument('-z', '--zip-output',
                     dest='zip_output',
-                    action='store_true',
-                    default=False,
-                    help='Creates a final HTML report for each generated model (forces -a MIG and --plot-topologies)')
+                    type=int, default=0,
+                    help='Defines the compression level. [0] No compression, [1] partial compression, [2] full compression')
 
 parser.add_argument('-u', '--update-databases',
                     dest='update',
@@ -310,7 +318,7 @@ maxasa = {'ALA':129.0,'ARG':274.0,'ASN':195.0,'ASP':193.0,
           'HIS':224.0,'ILE':197.0,'LEU':201.0,'LYS':236.0,
           'MET':224.0,'PHE':240.0,'PRO':159.0,'SER':155.0,
           'THR':172.0,'TRP':285.0,'TYR':263.0,'VAL':174.0,
-          'MME':224.0}
+          'MME':224.0,'MSE':224.0}
 '''
 Theoretical maximum solvent accessible area values retrieved from:
 TIEN, M. Z., MEYER, A. G., SYDYKOVA, D. K., SPIELMAN, S. J., & WILKE, C. O.
@@ -323,7 +331,7 @@ hydro = {'ALA': -0.17, 'ARG': -0.81, 'ASN': -0.42, 'ASP': -1.23,
          'HIS': -0.96, 'ILE': 0.31, 'LEU': 0.56, 'LYS': -0.99,
          'MET': 0.23, 'PHE': 1.13, 'PRO': -0.45, 'SER': -0.13,
          'THR': -0.14, 'TRP': 1.85, 'TYR': 0.94, 'VAL': -0.07,
-         'MME': 0.23}
+         'MME': 0.23, 'MSE': 0.23}
 '''
 Hydropobicity values retrieved from:
 WIMLEY, W. C.; WHITE, S. H. Experimentally determined hydrophobicity scale for
@@ -381,6 +389,8 @@ for line in open(config_file, 'r'):
         makeblastdb_exe = line.split('=')[1].strip()
     if line.startswith('mafft_exe'):
         mafft_exe = line.split('=')[1].strip()
+    if line.startswith('tmhmm2_exe'):
+        tmhmm2_exe = line.split('=')[1].strip()
     if line.startswith('choirdb'):
         choirdb = line.split('=')[1].strip()
 

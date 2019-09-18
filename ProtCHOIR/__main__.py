@@ -7,9 +7,11 @@ from datetime import datetime
 start_time = datetime.timestamp(datetime.now())-1
 import os
 import sys
+import time
 import pickle
 import shutil
 import zipfile
+import operator
 import argparse
 import textwrap as tw
 import ProtCHOIR.Toolbox as pctools
@@ -101,6 +103,8 @@ def main():
         assert args.refine_level in [0, 1, 2, 3, 4], clrs['r']+'\n\n Refinement level must be an integer number from 0 to 4.\n Run ./ProtCHOIR -h for more information\n\n'+clrs['n']
         assert input_file is not None, clrs['r']+'\n\n Please inform the input file name.\n Run ./ProtCHOIR -h for more information.\n\n'+clrs['n']
         assert os.path.isfile(input_file), clrs['r']+'\n\n Not able to find input file.\n\n Does "'+input_file+'" exist?\n'+clrs['n']
+        assert args.zip_output in [0, 1, 2], clrs['r']+'\n\n Compression level must be an integer number between 0 and 2.\n Run ./ProtCHOIR -h for more information\n\n'+clrs['n']
+
 
         # Force generation of topologies and all assessments if final report is requested
         if args.generate_report is True:
@@ -169,9 +173,9 @@ def main():
             minx = None
             maxx = None
             if args.skip_conservation:
-                pdb_name, largest_oligo_complexes, interfaces_dict, report = analyse_protomer_results
+                pdb_name, largest_oligo_complexes, interfaces_dict, tmdata, report = analyse_protomer_results
             elif not args.skip_conservation:
-                pdb_name, largest_oligo_complexes, interfaces_dict, entropies, z_entropies, report = analyse_protomer_results
+                pdb_name, largest_oligo_complexes, interfaces_dict, entropies, z_entropies, tmdata, report = analyse_protomer_results
 
         elif analyse_protomer_results is not None and args.sequence_mode is False:
             if args.skip_conservation:
@@ -179,40 +183,61 @@ def main():
                 maxx = None
                 entropies = None
                 z_entropies = None
-                pdb_name, largest_oligo_complexes, interfaces_dict, residue_index_mapping, report = analyse_protomer_results
+                pdb_name, largest_oligo_complexes, interfaces_dict, residue_index_mapping, tmdata, report = analyse_protomer_results
             elif not args.skip_conservation:
-                pdb_name, largest_oligo_complexes, interfaces_dict, entropies, z_entropies, residue_index_mapping, minx, maxx, report = analyse_protomer_results
+                pdb_name, largest_oligo_complexes, interfaces_dict, entropies, z_entropies, residue_index_mapping, minx, maxx, tmdata, report = analyse_protomer_results
 
         # Use information of complexes to build oligomers
         best_oligo_template, built_oligomers, report = make_oligomer(new_input_file, largest_oligo_complexes, report, args, residue_index_mapping=residue_index_mapping)
 
         # Analyse built models
-        reports = analyse_oligomers(new_input_file, best_oligo_template, built_oligomers, interfaces_dict, report, args, entropies=entropies, z_entropies=z_entropies, minx=minx, maxx=maxx)
+        reports = analyse_oligomers(new_input_file, best_oligo_template, built_oligomers, interfaces_dict, tmdata, report, args, entropies=entropies, z_entropies=z_entropies, minx=minx, maxx=maxx)
 
         # Generate HTML report
-        nozip = [report['model_filename'] for report in reports]
-        for report in reports:
-            if args.generate_report is True:
-                report['html_report'] = pctools.html_report(report, args)
-                for key, value in report.items():
-                    if key in ['html_report', 'molprobity_radar', 'comparison_plots', 'protomer_figure', 'protomer_plot', 'template_figure', 'topology_figure', 'assemblied_protomer_plot', 'input_filename']:
-                        nozip.append(os.path.basename(value))
-                    if key == 'model_figures':
-                        for figure in value:
-                            nozip.append(os.path.basename(figure))
+        if args.zip_output == 2:
+            # Don't prevent compression of anything
+            nozip = []
+            for report in reports:
+                if args.generate_report is True:
+                    report['html_report'] = pctools.html_report(report, args)
+        else:
+            # Prevent compression of files needed for the report and the models
+            nozip = [os.path.basename(report['model_filename']) for report in reports]
 
+            print(nozip)
+            for report in reports:
+                if args.generate_report is True:
+                    report['html_report'] = pctools.html_report(report, args)
+                    for key, value in report.items():
+                        if key in ['html_report', 'molprobity_radar', 'comparison_plots', 'protomer_figure', 'protomer_plot', 'template_figure', 'topology_figure', 'assemblied_protomer_plot', 'input_filename']:
+                            nozip.append(os.path.basename(value))
+                        if key == 'model_figures':
+                            for figure in value:
+                                nozip.append(os.path.basename(figure))
+
+        # Generate summary tsv file for the best report
+        best_report = sorted(reports, key=operator.itemgetter('protchoir_score'))[-1]
+        report_data = ['input_filename', 'vivacemodel', 'protomer_residues', 'tmspans', 'best_template', 'best_nchains', 'best_id', 'best_cov', 'best_qscore', 'model_oligomer_name', 'model_molprobity', 'gesamt_rmsd', 'protchoir_score', 'surface_score', 'interfaces_score', 'quality_score']
+        summary_file = input_basename+'_CHOIR_Summary.tsv'
+        nozip.append(summary_file)
+        with open(summary_file, 'w') as f:
+            f.write('Input\tVivace\tLength\tTMSpans\tTemplate\tChains\tIdentity\tCoverage\tAv.QScore\tBestModel\tMolprobity\tRMSD\tProtCHOIR\tSurface\tInterfaces\tQuality\n')
+            f.write('\t'.join([str(best_report[data]) for data in report_data])+'\n')
         # Finalise
         end_time = datetime.timestamp(datetime.now())
-        if args.zip_output is True:
+        time.sleep(1)
+
+        # Compress output
+        if args.zip_output > 0:
             try:
                 import zlib
                 compression = zipfile.ZIP_DEFLATED
             except (ImportError, AttributeError):
                 compression = zipfile.ZIP_STORED
 
-            with zipfile.ZipFile(pdb_name+'ProtCHOIR_OUT.zip', 'w', compression=compression) as zipf:
+            with zipfile.ZipFile(pdb_name+'_ProtCHOIR_OUT.zip', 'w', compression=compression) as zipf:
                 for f in os.listdir(os.getcwd()):
-                    if f != 'ProtCHOIR_OUT.zip' and os.path.getctime(f) > start_time and os.path.getctime(f) < end_time:
+                    if f != pdb_name+'_ProtCHOIR_OUT.zip' and os.path.getctime(f) > start_time and os.path.getctime(f) < end_time:
                         print('Compressing... '+f)
                         zipf.write(f)
                         if f not in nozip:

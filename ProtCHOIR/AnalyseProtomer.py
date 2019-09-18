@@ -12,6 +12,7 @@ import pandas as pd
 matplotlib.use('Agg')
 import textwrap as tw
 import networkx as nx
+from Bio import SeqIO
 import matplotlib.pyplot as plt
 from multiprocessing import Pool
 from ProtCHOIR.Initialise import *
@@ -545,6 +546,34 @@ def analyse_hits(hit):
         return hit, cluster_dict[largest_cluster], interfaces_list, cluster_dict, hit_nchains, initial_homo_chains, hetero_complex, '\n'.join(output)
 
 
+def run_tmhmm2(fasta, args):
+    tmhmm2_cmd = [tmhmm2_exe, fasta]
+    print('\nRunning '+clrs['b']+'TMHMM'+clrs['n']+' to assess likely transmembrane residues...')
+    tmhmm2_out = os.path.join(workdir, pdb_name+'_CHOIR_TMHMM2.dat')
+    tmhmm2_cmd = [tmhmm2_exe, fasta]
+    pctools.printv(clrs['b']+'TMHMM2'+clrs['n']+' command line: '+' '.join(tmhmm2_cmd), args.verbosity)
+    with open(tmhmm2_out, 'w') as f:
+        subprocess.run(tmhmm2_cmd, stdout=f, check=True)
+    print('Done running '+clrs['b']+'TMHMM'+clrs['n']+'. Data file written to '+clrs['g']+os.path.basename(tmhmm2_out)+clrs['n'])
+    return tmhmm2_out
+
+def parse_tmhmm_output(tmhmm_out, residue_index_mapping, args):
+    tmspans = []
+    for line in open(tmhmm_out, 'r'):
+        if not line.startswith("#"):
+            if line.split()[2] == 'TMhelix':
+                tmspans.append((residue_index_mapping[int(line.split()[3])], residue_index_mapping[int(line.split()[4])]))
+    print(clrs['b']+'TMHMM'+clrs['n']+' found '+clrs['c']+str(len(tmspans))+clrs['n']+' transmembrane helices')
+    tmresidues = []
+    n = 0
+    for tmspan in tmspans:
+        n += 1
+        print('TM Helix '+str(n)+': '+str(tmspan[0])+' <-> '+ str(tmspan[1]))
+        for i in range(tmspan[0], tmspan[1]):
+            tmresidues.append(i)
+    return tmspans, tmresidues
+
+
 # Main Function
 ###############################################################################
 def analyze_protomer(input_file, report, args):
@@ -577,7 +606,7 @@ def analyze_protomer(input_file, report, args):
                     print(clrs['y']+'Dealing with a Vivace model! Kudos!'+clrs['n'])
                     vivacemodel = True
                     break
-
+        report['vivacemodel'] = str(vivacemodel)
         # Check number of chains in input
         pdb_name, structure, nchains = pctools.parse_any_structure(input_file)
         if nchains == 1:
@@ -603,10 +632,16 @@ def analyze_protomer(input_file, report, args):
         report['protomer_residues'] = str(len(sequence))
         fasta_file = write_fasta(sequence)
 
+        # Get likely transmembrane residues
+        tmhmm_out = run_tmhmm2(fasta_file, args)
+        tmdata = parse_tmhmm_output(tmhmm_out, residue_index_mapping, args)
+        report['tmspans'] = str(len(tmdata[0]))
+
+
         # If not a Vivace model, Use PSI-BLAST to search homodb and return hits
         pctools.print_subsection('1[b]', 'Oligomeric homologues search')
         if vivacemodel is False:
-            hits = blast_protomer(fasta_file, homoblast, max_candidates, 8, 8, args.verbosity)
+            hits = blast_protomer(fasta_file, homoblast, max_candidates, 1, 8, args.verbosity)
             if not hits:
                 print('PSI-BLAST found NO hits in Homo-Oligomeric database')
                 return None
@@ -638,7 +673,7 @@ def analyze_protomer(input_file, report, args):
                 msa_dict_trim = parse_msa(trimmed_msa)
                 entropies = relative_entropy(msa_dict_trim, protomer_surface_residues)
                 z_entropies = calc_z_scores(entropies)
-                report['protomer_plot'], report['protomer_exposed_area'], report['protomer_hydrophobic_area'], report['protomer_conserved_area'], minx, maxx = pctools.plot_analysis(pdb_name, protomer_surface_residues, entropies, z_entropies, args)
+                report['protomer_plot'], report['protomer_exposed_area'], report['protomer_hydrophobic_area'], report['protomer_conserved_area'], minx, maxx = pctools.plot_analysis(pdb_name, protomer_surface_residues, entropies, z_entropies, tmdata, args)
                 monomer_conservation = map_conservation(structure, z_entropies)
                 report['protomer_figure'] = pctools.pymol_screenshot_mono(monomer_conservation, z_entropies, args)
         else:
@@ -651,15 +686,16 @@ def analyze_protomer(input_file, report, args):
             fasta_file = input_file
             pdb_name = os.path.basename(fasta_file).split("_CHOIR_MonomerSequence.fasta")[0].replace('.', '_')
             report['input_filename'] = os.path.basename(fasta_file)
+            records = list(SeqIO.parse(fasta_file, "fasta"))
+            sequence = records[0].seq
+            report['protomer_residues'] = str(len(sequence))
 
         elif args.input_file.endswith('.pdb'):
             report['input_filename'] = os.path.basename(input_file)
             pdb_name, structure, nchains = pctools.parse_any_structure(input_file)
             nchains, seqs, chain_ids = pctools.extract_seqs(structure, 0)
             sequence = seqs[0][1]
-            residue_index_mapping = {}
-            for i in sequence:
-                residue_index_mapping[i] = i
+            report['protomer_residues'] = str(len(sequence))
             fasta_file = write_fasta(sequence)
             if nchains == 1:
                 print('Structure '+clrs['p']+pdb_name+clrs['n']+' is '+clrs['y']+'MONOMERIC'+clrs['n']+' as expected')
@@ -667,9 +703,17 @@ def analyze_protomer(input_file, report, args):
                 print('Structure '+clrs['p']+pdb_name+clrs['n']+' contains '+clrs['y']+str(nchains)+clrs['n']+' chains.')
                 print('Will consider only first chain')
         vivacemodel = False
+        report['vivacemodel'] = str(vivacemodel)
 
+        residue_index_mapping = {}
+        for i, aa in enumerate(sequence):
+            residue_index_mapping[i] = i
+        # Get likely transmembrane residues
+        tmhmm_out = run_tmhmm2(fasta_file, args)
+        tmdata = parse_tmhmm_output(tmhmm_out, residue_index_mapping, args)
+        report['tmspans'] = str(len(tmdata[0]))
         pctools.print_subsection('1[b]', 'Oligomeric homologues search')
-        hits = blast_protomer(fasta_file, homoblast, max_candidates, 8, 8, args.verbosity)
+        hits = blast_protomer(fasta_file, homoblast, max_candidates, 1, 8, args.verbosity)
         if not hits:
             print('PSI-BLAST found NO hits in Homo-Oligomeric database')
             return None
@@ -687,7 +731,7 @@ def analyze_protomer(input_file, report, args):
                 msa_dict_trim = parse_msa(trimmed_msa)
                 entropies = relative_entropy(msa_dict_trim, None)
                 z_entropies = calc_z_scores(entropies)
-                report['protomer_plot'] = pctools.plot_entropy_only(pdb_name, entropies, z_entropies, args)
+                report['protomer_plot'] = pctools.plot_entropy_only(pdb_name, entropies, z_entropies, tmdata, args)
         else:
             print(clrs['y']+"Skipping section 1[c] - Sequence conservation analysis"+clrs['n']+"\n")
 
@@ -743,12 +787,12 @@ def analyze_protomer(input_file, report, args):
 
     if args.sequence_mode:
         if args.skip_conservation:
-            return pdb_name, largest_oligo_complexes, interfaces_dict, report
+            return pdb_name, largest_oligo_complexes, interfaces_dict, tmdata, report
         elif not args.skip_conservation:
-            return pdb_name, largest_oligo_complexes, interfaces_dict, entropies, z_entropies, report
+            return pdb_name, largest_oligo_complexes, interfaces_dict, entropies, z_entropies, tmdata, report
 
     elif not args.sequence_mode:
         if args.skip_conservation:
-            return pdb_name, largest_oligo_complexes, interfaces_dict, residue_index_mapping, report
+            return pdb_name, largest_oligo_complexes, interfaces_dict, residue_index_mapping, tmdata, report
         elif not args.skip_conservation:
-            return pdb_name, largest_oligo_complexes, interfaces_dict, entropies, z_entropies, residue_index_mapping, minx, maxx, report
+            return pdb_name, largest_oligo_complexes, interfaces_dict, entropies, z_entropies, residue_index_mapping, minx, maxx, tmdata, report

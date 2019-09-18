@@ -764,7 +764,7 @@ def run_gesamt(reference_name, reference_pdb, target_name, target_pdb, chain, ar
     if chain is None:
         print('Running '+clrs['b']+'GESAMT'+clrs['n']+' to align '+clrs['y']+target_name+clrs['n']+' to '+clrs['y']+reference_name+clrs['n'])
         fasta_out = target_name+"_"+reference_name+'_CHOIR_Gesamt.fasta'
-        gesamtcmd = ['/opt/ccp4/ccp4-7.0/bin/gesamt', reference_pdb, target_pdb, '-a', fasta_out, '-high']
+        gesamtcmd = ['/opt/ccp4/ccp4-7.0/bin/gesamt', reference_pdb, target_pdb, '-a', fasta_out]
     else:
         print('Running '+clrs['b']+'GESAMT'+clrs['n']+' to align '+clrs['y']+target_name+clrs['n']+' to '+clrs['y']+reference_name+clrs['n']+' - Chain '+clrs['y']+chain+clrs['n'])
         fasta_out = target_name+"_"+reference_name+chain+'_CHOIR_Gesamt.fasta'
@@ -844,8 +844,8 @@ def pymol_screenshot_mono(monomer_structure, z_entropies, args):
                           set ray_trace_color, 1
                           set antialias,', 1
                           set orthoscopic, 1
-                          cmd.spectrum("b", "green_yellow_red", '"""+str(prot)+"""', minimum="""+str(minval)+""", maximum="""+str(maxval)+""")
-                          cmd.ramp_new("ramp_obj", '"""+str(prot)+"""', range=["""+str(minval)+""", """+str(maxval)+"""], color="[green, yellow, red]")
+                          cmd.spectrum("b", "red_yellow_green", '"""+str(prot)+"""', minimum="""+str(minval)+""", maximum="""+str(maxval)+""")
+                          cmd.ramp_new("ramp_obj", '"""+str(prot)+"""', range=["""+str(minval)+""", """+str(maxval)+"""], color="[red, yellow, green]")
                           orient
                           zoom complete=1
                           ray 2000, 2000
@@ -886,9 +886,6 @@ def pymol_screenshot(structure_file, args, putty=False):
                           save """+outfile1))
         if putty:
             f.write(tw.dedent("""
-                              preset.b_factor_putty(selection='all')
-                              set cartoon_putty_scale_power, 3
-                              util.cbc
                               ray 2000, 2000
                               save """+outfile2+"""
                               rotate y, 90
@@ -900,6 +897,9 @@ def pymol_screenshot(structure_file, args, putty=False):
                               rotate y, 90
                               ray 2000, 2000
                               save """+outfile5))
+                              # preset.b_factor_putty(selection='all')
+                              # set cartoon_putty_scale_power, 3
+                              # util.cbc
     try:
         subprocess.Popen(pymol_cmd, stdout=open(os.devnull, 'w'), stderr=subprocess.STDOUT).wait()
         os.remove(pymolrc)
@@ -1116,7 +1116,7 @@ def map_residue_index(surface_residues):
     return residue_index_mapping
 
 
-def plot_analysis(pdb_name, surface_residues, entropies, z_entropies, args, minx=None, maxx=None):
+def plot_analysis(pdb_name, surface_residues, entropies, z_entropies, tmdata, args, minx=None, maxx=None):
     # Reset Matplotlib parameters to default
     matplotlib.rcParams.update(matplotlib.rcParamsDefault)
 
@@ -1146,7 +1146,10 @@ def plot_analysis(pdb_name, surface_residues, entropies, z_entropies, args, minx
             color = 'blue'
         elif hydro[res[:3]] > hydro['GLY']:
             color = 'red'
-            hydrophobic_area += float(areas[0])
+            if int(res[3:]) not in tmdata[1]:
+                hydrophobic_area += float(areas[0])
+            else:
+                printv('Ígnoring hydrophobic exposed area from residue: '+res, args.verbosity)
         else:
             color = 'black'
         x.append(int(res[3:]))
@@ -1163,12 +1166,15 @@ def plot_analysis(pdb_name, surface_residues, entropies, z_entropies, args, minx
     conserved_area = 0
     for (res, areas), (column, zscore) in zip(surface_residues.items(), z_entropies.items()):
         if zscore > 1:
-            conserved_area += float(areas[0])
+            if int(res[3:]) not in tmdata[1]:
+                conserved_area += float(areas[0])
+            else:
+                printv('Ígnoring conserved exposed area from residue: '+res, args.verbosity)
     print('Conserved area exposed= '+str(round(conserved_area, 2))+' A^2')
 
     # Plot everything
 
-    p, (ax1, ax2, ax3) = plt.subplots(3, sharex=True, figsize=(18, 9), gridspec_kw={'height_ratios': [1, 1, 4]})
+    p, (ax1, ax2, ax3, ax4) = plt.subplots(4, sharex=True, figsize=(18, 9), gridspec_kw={'height_ratios': [1, 1, 0.5, 3.5]})
     plt.suptitle('Analysis of '+pdb_name+' Protomer', fontsize=20, fontweight='bold')
 
     # Plot Relative Entropy
@@ -1191,22 +1197,31 @@ def plot_analysis(pdb_name, surface_residues, entropies, z_entropies, args, minx
     ax2.bar(z_entropies.keys(), z_entropies.values(), color=colors, zorder=3)
     ax2.grid(True, linestyle=':', linewidth=0.7, zorder=0, color='k')
 
+    # Plot membrane residues
+    ax3.set_ylabel("TM Helices", fontsize=12)
+    ax3.get_yaxis().set_label_coords(-0.02, 0.5)
+    ax3.get_yaxis().set_ticks([])
+    ax3.get_yaxis().set_ticklabels([])
+    for seg in tmdata[0]:
+        ax3.plot( seg, [0, 0],  marker=None, linewidth=12, color='goldenrod')
+    ax3.grid(True, linestyle=':', linewidth=0.7, zorder=0, color='k')
+
     # Plot RSA and Hydrophobicity
     df = pd.DataFrame({'x': x, 'y': y})
-    ax3.bar('x', 'y', data=df, color=z, zorder=3)
-    ax3.xaxis.set_ticks(np.arange(min(x), max(x), round((max(x)-min(x))*0.025)))
-    ax3.set_xlabel('Residue Index', fontsize=16)
-    ax3.set_ylabel('Relative Exposed Surface Area (%)', fontsize=12)
-    ax3.get_yaxis().set_label_coords(-0.02, 0.5)
-    ax3.set_xlim(min(x)-2, max(x)+2)
-    ax3.axhline(y=20, linestyle='-', linewidth=0.7, color='k')
-    ax3.grid(True, linestyle=':', linewidth=0.7, zorder=0, color='k')
+    ax4.bar('x', 'y', data=df, color=z, zorder=3)
+    ax4.xaxis.set_ticks(np.arange(min(x), max(x), round((max(x)-min(x))*0.025)))
+    ax4.set_xlabel('Residue Index', fontsize=16)
+    ax4.set_ylabel('Relative Exposed Surface Area (%)', fontsize=12)
+    ax4.get_yaxis().set_label_coords(-0.02, 0.5)
+    ax4.set_xlim(min(x)-2, max(x)+2)
+    ax4.axhline(y=20, linestyle='-', linewidth=0.7, color='k')
+    ax4.grid(True, linestyle=':', linewidth=0.7, zorder=0, color='k')
     # Draw legend
     legend_elements = [Line2D([0], [0], color='b', lw=10, label='Hydrophylic'),
                        Line2D([0], [0], color='k', lw=10, label='Mid-range'),
                        Line2D([0], [0], color='r', lw=10, label='Hydrophobic'),
                        Line2D([0], [0], color='grey', lw=10, label='Gap')]
-    ax3.legend(handles=legend_elements, loc=9, ncol=4, bbox_to_anchor=(0.5, -0.10), frameon=False)
+    ax4.legend(handles=legend_elements, loc=9, ncol=4, bbox_to_anchor=(0.5, -0.10), frameon=False)
 
     # Organize
     plt.tight_layout(rect=[0, 0.03, 1, 0.95])
@@ -1224,14 +1239,14 @@ def plot_analysis(pdb_name, surface_residues, entropies, z_entropies, args, minx
     return './'+os.path.basename(outfile), round(total_area, 2), round(hydrophobic_area, 2), round(conserved_area, 2), minx, maxx
 
 
-def plot_entropy_only(pdb_name, entropies, z_entropies, args):
+def plot_entropy_only(pdb_name, entropies, z_entropies, tmdata, args):
     # Reset Matplotlib parameters to default
     matplotlib.rcParams.update(matplotlib.rcParamsDefault)
     print('\nPlotting entropy scores per residue...')
     # Plot RSA and calculate total hydrophobic area exposed
     # Plot everything
 
-    p, (ax1, ax2) = plt.subplots(2, sharex=True, figsize=(18, 9), gridspec_kw={'height_ratios': [2, 2]})
+    p, (ax1, ax2, ax3) = plt.subplots(3, sharex=True, figsize=(18, 9), gridspec_kw={'height_ratios': [1, 2, 1]})
     plt.suptitle('Analysis of '+pdb_name+' Protomer', fontsize=24, fontweight='bold')
 
     # Plot Relative Entropy
@@ -1254,6 +1269,15 @@ def plot_entropy_only(pdb_name, entropies, z_entropies, args):
     ax2.bar(z_entropies.keys(), z_entropies.values(), color=colors, zorder=3)
     ax2.grid(True, linestyle=':', linewidth=0.7, zorder=0, color='k')
 
+    # Plot membrane residues
+    ax3.set_ylabel("TM\nHelices", fontsize=12)
+    ax3.get_yaxis().set_label_coords(-0.02, 0.5)
+    ax3.get_yaxis().set_ticks([])
+    ax3.get_yaxis().set_ticklabels([])
+    for seg in tmdata[0]:
+        ax3.plot( seg, [0, 0],  marker=None, linewidth=12, color='goldenrod')
+    ax3.grid(True, linestyle=':', linewidth=0.7, zorder=0, color='k')
+
     # Organize
     plt.tight_layout(rect=[0, 0.03, 1, 0.95])
     p.subplots_adjust(hspace=0)
@@ -1267,8 +1291,6 @@ def plot_entropy_only(pdb_name, entropies, z_entropies, args):
     plt.close()
     print('Conservation plots for '+pdb_name+' generated : '+clrs['g']+os.path.basename(outfile)+clrs['n']+'\n')
     return './'+os.path.basename(outfile)
-
-
 
 
 # Execute

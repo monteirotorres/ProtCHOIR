@@ -283,7 +283,7 @@ def generate_ali(alignments, best_oligo_template, residue_index_mapping, args):
     return final_alignment, full_residue_mapping
 
 
-def create_genmodel(final_alignment, best_oligo_template, chains, nmodels, refine_level, symmetry):
+def create_genmodel(final_alignment, best_oligo_template, chains, args):
     genmodel_file = os.path.join(workdir, input_name+'_'+best_oligo_template+'_CHOIR_Genmodel.py')
     for line in open(final_alignment, 'r').readlines():
         if line.startswith('sequence:'):
@@ -292,7 +292,7 @@ def create_genmodel(final_alignment, best_oligo_template, chains, nmodels, refin
             template_structure = line.split(':')[1]
     with open(genmodel_file, 'w') as f:
         f.write('from modeller import *\nfrom modeller.automodel import *\n\nlog.verbose()\n\n\n')
-        if symmetry is True:
+        if args.symmetry is True:
             f.write('class symmodel(automodel):\n\tdef special_restraints(self,aln):\n')
             for chain_i, chain_j in itertools.combinations(chains, 2):
                 f.write("\t\tself.restraints.symmetry.append(symmetry(selection(self.chains['"+chain_i+"']), selection(self.chains['"+chain_j+"']), 1.0))\n")
@@ -305,20 +305,22 @@ def create_genmodel(final_alignment, best_oligo_template, chains, nmodels, refin
             f.write('\tdef special_patches(self,aln):\n\t\tself.rename_segments(segment_ids='+str(sorted(chains))+', renumber_residues='+str([1]*len(chains))+')\n\n')
             f.write('env = environ()\n\n')
             f.write("a = renumbermodel(env, alnfile='"+final_alignment+"', knowns=('"+template_structure+"'), sequence='"+sequence_name+"', assess_methods=(assess.DOPE, assess.GA341))\n")
-        f.write("a.starting_model = 1\na.ending_model = "+str(nmodels)+"\n")
-        if refine_level == 0:
+        f.write("a.starting_model = 1\na.ending_model = "+str(args.models)+"\n")
+        if args.refine_level == 0:
             f.write("a.library_schedule = autosched.very_fast\na.max_var_iterations = 1000\n")
-        elif refine_level == 1:
+        elif args.refine_level == 1:
             f.write("a.library_schedule = autosched.fast\na.max_var_iterations = 1000\n")
-        elif refine_level == 2:
+        elif args.refine_level == 2:
             f.write("a.library_schedule = autosched.normal\na.max_var_iterations = 1000\n")
-        elif refine_level == 3:
+        elif args.refine_level == 3:
             f.write("a.library_schedule = autosched.slow\na.max_var_iterations = 1000\n")
-        elif refine_level == 4:
+        elif args.refine_level == 4:
             f.write("a.library_schedule = autosched.slow\na.max_var_iterations = 1000\na.md_level = refine.slow\n")
+        if args.repeat_opt > 0:
+            f.write("a.repeat_optimization = "+str(args.repeat_opt)+"\n")
         f.write("a.make()")
     print('Modeller script written to '+clrs['g']+os.path.basename(genmodel_file)+clrs['n']+'\n')
-    expected_models = [input_name+'.B9999000'+str(n)+'.pdb' for n in range(1, nmodels+1)]
+    expected_models = [input_name+'.B9999000'+str(n)+'.pdb' for n in range(1, args.models+1)]
     return genmodel_file, expected_models
 
 
@@ -372,6 +374,10 @@ def make_oligomer(input_file, largest_oligo_complexes, report, args, residue_ind
         if candidate_qscores[best_oligo_template] >= args.qscore_cutoff:
             print('Structurally, the best template is: '+clrs['y']+best_oligo_template+clrs['n']+'. Using that!\n')
             report['best_template'] = best_oligo_template.split(':')[0]
+            report['best_id'] = report['hits'][best_oligo_template]['id']
+            report['best_cov'] = report['hits'][best_oligo_template]['coverage']
+            report['best_qscore'] = report['hits'][best_oligo_template]['score']
+            report['best_nchains'] = report['hits'][best_oligo_template]['final_homo_chains']
         else:
             print('No template had an average Q-score above cut-off of'+clrs['c']+str(args.qscore_cutoff)+clrs['n']+'\nTry lowering the cutoff or running in sequence mode.\n')
             pctools.print_sorry()
@@ -389,6 +395,10 @@ def make_oligomer(input_file, largest_oligo_complexes, report, args, residue_ind
         print(clrs['y']+"Skipping section 2[a] - Structural template selection"+clrs['n']+"\n")
         best_oligo_template = list(largest_oligo_complexes)[0]
         report['best_template'] = best_oligo_template.split(':')[0]
+        report['best_id'] = report['hits'][best_oligo_template]['id']
+        report['best_cov'] = report['hits'][best_oligo_template]['coverage']
+        report['best_qscore'] = 'N/A'
+        report['best_nchains'] = report['hits'][best_oligo_template]['final_homo_chains']
     report['topology_figure'] = './'+best_oligo_template.replace(':', '_')+'_CHOIR_Topology.png'
     template_chains = largest_oligo_complexes[best_oligo_template]
     best_oligo_template_code = best_oligo_template.split(':')[0]
@@ -414,7 +424,7 @@ def make_oligomer(input_file, largest_oligo_complexes, report, args, residue_ind
     # Generate final alignment which will be the input for Modeller
     final_alignment, full_residue_mapping = generate_ali(alignment_files, best_oligo_template_code, residue_index_mapping, args)
     pctools.print_subsection('2[c]', 'Generating models')
-    genmodel_file, expected_models = create_genmodel(final_alignment, best_oligo_template_code, relevant_chains, args.models, args.refine_level, symmetry)
+    genmodel_file, expected_models = create_genmodel(final_alignment, best_oligo_template_code, relevant_chains, args)
     run_modeller(genmodel_file)
 
     # Record list of oligomers built

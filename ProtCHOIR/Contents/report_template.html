@@ -269,9 +269,9 @@
             <br>
             <span><b>Total solvent-exposed area:</b> {{report['protomer_exposed_area']}}</span>
             <br>
-            <span><b>Hydrophobic exposed area*:</b> {{report['protomer_hydrophobic_area']}}</span>
+            <span><b>Hydrophobic exposed area*†:</b> {{report['protomer_hydrophobic_area']}}</span>
             <br>
-            <span><b>Conserved exposed area**:</b> {{report['protomer_conserved_area']}}</span>
+            <span><b>Conserved exposed area**†:</b> {{report['protomer_conserved_area']}}</span>
             <br>
             <span><b>Molprobity clashscore:</b> {{report['protomer_clashscore']}}</span>
             <br>
@@ -280,7 +280,8 @@
 
           <div style = "display: inline-block; width: 100%; text-align: left;">
             <span class=small><p>*Hydrophobic residues are: MET, CYS, ILE, LEU, TYR, PHE and TRP.<br>
-              **Residues are considered conserved if relative entropy Z-score is > 1.</p></span>
+              **Residues are considered conserved if relative entropy Z-score is > 1.<br>
+              †TMHMM-detected transmembrane helices are excluded from hydrophobic and conserved exposed areas.</p></span>
           </div>
         </div>
         <div class=third>
@@ -371,11 +372,11 @@
       <div style="width: 33%">
         <span class="header">Assemblied Protomer Data</span>
         <div class="bigbox" style="background: #c4ed9a">
-          <span><b>Total solvent-exposed area*:</b> {{report['assemblied_protomer_exposed_area']}} {% if report['runtime_arguments']['sequence_mode'] == False %}(-{{report['exposed_area_reduction']}}%){% endif %}</span>
+          <span><b>Total solvent-exposed area*:</b> {{report['assemblied_protomer_exposed_area']}} {% if report['runtime_arguments']['sequence_mode'] == False %}({{report['exposed_area_reduction']}}%){% endif %}</span>
           <br>
-          <span><b>Hydrophobic exposed area*:</b> {{report['assemblied_protomer_hydrophobic_area']}} {% if report['runtime_arguments']['sequence_mode'] == False %}(-{{report['hydrophobic_area_reduction']}}%){% endif %}</span>
+          <span><b>Hydrophobic exposed area*:</b> {{report['assemblied_protomer_hydrophobic_area']}} {% if report['runtime_arguments']['sequence_mode'] == False %}({{report['hydrophobic_area_reduction']}}%){% endif %}</span>
           <br>
-          <span><b>Conserved exposed area*:</b> {{report['assemblied_protomer_conserved_area']}} {% if report['runtime_arguments']['sequence_mode'] == False %}(-{{report['conserved_area_reduction']}}%){% endif %}</span>
+          <span><b>Conserved exposed area*:</b> {{report['assemblied_protomer_conserved_area']}} {% if report['runtime_arguments']['sequence_mode'] == False %}({{report['conserved_area_reduction']}}%){% endif %}</span>
           <br>
           <span><b>RMSD to template**:</b> {{report['gesamt_rmsd']}}</span>
           <br>
@@ -388,6 +389,10 @@
         <div style = "display: inline-block; width: 100%; text-align: left">
           <span class=small><p>*Per protomer. % compared to unassembled protomer.<br>
             **Data obtained using GESAMT.</p></span>
+            <span class="header">ProtCHOIR score: </span>
+            <span class="header" style="color: {{report['score_color']}}">{{report['protchoir_score']}}</span>
+            <br>
+            <span class=small>(I: {{report['interfaces_score']}} | S: {{report['surface_score']}} | Q: {{report['quality_score']}})</span>
         </div>
       </div>
       <div class=third>

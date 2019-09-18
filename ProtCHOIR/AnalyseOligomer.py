@@ -1,6 +1,7 @@
 # Imports
 ###############################################################################
 import os
+import math
 import pickle
 import matplotlib
 import numpy as np
@@ -140,7 +141,7 @@ def plot_deltas(model_name, template_name, interfaces_comparison, args):
         template_saltbridges.append(comparison_data['template sb'])
         template_dissulfides.append(comparison_data['template ss'])
         n += 1
-    p, (ax1, ax2, ax3, ax4) = plt.subplots(4, figsize=(18, 24), sharex=True, gridspec_kw={'height_ratios': [1]*4})
+    p, (ax1, ax2, ax3, ax4, ax5) = plt.subplots(5, figsize=(18, 24), sharex=True, gridspec_kw={'height_ratios': [1]*5})
 
     if n == 1:
         plt.suptitle('Interface comparison between '+model_name+' and '+template_name, fontsize=32, fontweight='bold')
@@ -188,12 +189,12 @@ def plot_deltas(model_name, template_name, interfaces_comparison, args):
     ax4.bar(indices + width, model_saltbridges, width, label='Model')
     ax4.tick_params(labelsize=22)
 
-    # # Plot Disulfides
-    # ax5.set_ylabel("Disulfide Bonds", fontsize=20)
-    # ax5.grid(True, linestyle=':', linewidth=0.7, zorder=0, color='k')
-    # ax5.bar(indices, template_dissulfides, width, label='Template')
-    # ax5.bar(indices + width, model_dissulfides, width, label='Model')
-    # ax5.tick_params(labelsize=18)
+    # Plot Disulfides
+    ax5.set_ylabel("Disulfide Bonds", fontsize=24)
+    ax5.grid(True, linestyle=':', linewidth=0.9, zorder=0, color='k')
+    ax5.bar(indices, template_dissulfides, width, label='Template')
+    ax5.bar(indices + width, model_dissulfides, width, label='Model')
+    ax5.tick_params(labelsize=22)
 
     plt.tight_layout(rect=[0, 0.03, 1, 0.95])
 
@@ -263,7 +264,7 @@ def plot_molprobity(model_name, model_molprobity, template_name, template_molpro
     return './'+outfile
 
 
-def analyse_oligomers(input_file, template_hitchain, oligomers_list, interfaces_dict, report, args, entropies=None, z_entropies=None, minx=None, maxx=None):
+def analyse_oligomers(input_file, template_hitchain, oligomers_list, interfaces_dict, tmdata, report, args, entropies=None, z_entropies=None, minx=None, maxx=None):
     pctools.print_section(3, 'OLIGOMER ANALYSIS')
     # Define template for comparisons
     template = template_hitchain.split(':')[0]
@@ -291,12 +292,31 @@ def analyse_oligomers(input_file, template_hitchain, oligomers_list, interfaces_
 
             pisa_output, pisa_error, protomer_data = pctools.run_pisa(oligomer, '', args.verbosity, gen_monomer_data=True, gen_oligomer_data=True)
             protomer_surface_residues = pctools.get_areas(protomer_data)
-            report['assemblied_protomer_plot'], report['assemblied_protomer_exposed_area'], report['assemblied_protomer_hydrophobic_area'], report['assemblied_protomer_conserved_area'], minx, maxx = pctools.plot_analysis(pdb_name, protomer_surface_residues, entropies, z_entropies, args, minx=minx, maxx=maxx)
+            report['assemblied_protomer_plot'], report['assemblied_protomer_exposed_area'], report['assemblied_protomer_hydrophobic_area'], report['assemblied_protomer_conserved_area'], minx, maxx = pctools.plot_analysis(pdb_name, protomer_surface_residues, entropies, z_entropies, tmdata, args, minx=minx, maxx=maxx)
 
             if args.sequence_mode is False:
-                report['exposed_area_reduction'] = round(100 * (float(report['protomer_exposed_area']) - float(report['assemblied_protomer_exposed_area'])) / float(report['protomer_exposed_area']), 1)
-                report['hydrophobic_area_reduction'] = round(100 * (float(report['protomer_hydrophobic_area']) - float(report['assemblied_protomer_hydrophobic_area'])) / float(report['protomer_hydrophobic_area']), 1)
-                report['conserved_area_reduction'] = round(100 * (float(report['protomer_conserved_area']) - float(report['assemblied_protomer_conserved_area'])) / float(report['protomer_conserved_area']), 1)
+                report['exposed_area_reduction'] = int(100 * (float(report['assemblied_protomer_exposed_area']) - float(report['protomer_exposed_area'])) / float(report['protomer_exposed_area']))
+                report['hydrophobic_area_reduction'] = int(100 * (float(report['assemblied_protomer_hydrophobic_area']) - float(report['protomer_hydrophobic_area'])) / float(report['protomer_hydrophobic_area']))
+                report['conserved_area_reduction'] = int(100 * (float(report['assemblied_protomer_conserved_area']) - float(report['protomer_conserved_area'])) / float(report['protomer_conserved_area']))
+
+                if report['exposed_area_reduction'] < -5:
+                    if report['hydrophobic_area_reduction'] < 0:
+                        hydophobic_surface_score = 10*(report['hydrophobic_area_reduction']/report['exposed_area_reduction'])/3
+                    else:
+                        hydophobic_surface_score = 0
+                    print('Hydrophobic surface score: '+str(hydophobic_surface_score))
+                    if report['conserved_area_reduction'] < 0:
+                        conserved_surface_score = 10*(report['conserved_area_reduction']/report['exposed_area_reduction'])/3
+                    else:
+                        conserved_surface_score = 0
+                    print('Conserved surface score: '+str(conserved_surface_score))
+                    report['surface_score'] = round((hydophobic_surface_score+conserved_surface_score)/2, 2)
+                else:
+                    print(clrs['r']+'Exposed area reduction too small.'+clrs['n'])
+                    report['surface_score'] = 0
+                print('Final surface score: '+str(report['surface_score']))
+            else:
+                report['surface_score'] = 'N/A'
 
             model_oligomer = oligomer.split('_CHOIR_CorrectedChains')[0]
             xml_out = model_oligomer+'_CHOIR_PisaInterfaces.xml'
@@ -339,37 +359,65 @@ def analyse_oligomers(input_file, template_hitchain, oligomers_list, interfaces_
                         comparison_data['model ss'] = model_interface['disulphide bridges']
                         comparison_data['template ss'] = template_interface['disulphide bridges']
                         comparison_data['delta ss'] = delta_ss
-                        interfaces_comparison[''.join(sorted(model_interface['chains']))] = comparison_data
+
 
                         print(clrs['y']+'INTERFACES COMPARISON'+clrs['n'])
                         print(' <> '.join(model_interface['chains']))
                         if delta_area >= 0:
                             emphasis_color = clrs['g']
+                            relative_area = 100
                         else:
                             emphasis_color = clrs['r']
-                        print('Delta Interface Area: '+emphasis_color+str(delta_area)+clrs['n']+' A^2')
+                            relative_area = round(model_interface['interface area'] * 100 / template_interface['interface area'], 2)
+                        print('Delta Interface Area: '+emphasis_color+str(delta_area)+clrs['n']+' A^2 ('+str(relative_area)+'%)')
                         if delta_energy <= 0:
                             emphasis_color = clrs['g']
+                            relative_energy = 100
                         else:
                             emphasis_color = clrs['r']
-                        print('Delta Interface Solvation Energy: '+emphasis_color+str(delta_energy)+clrs['n']+' kcal/mol')
+                            if model_interface['interface solvation energy'] < 0 and template_interface['interface solvation energy'] < 0:
+                                relative_energy = round(model_interface['interface solvation energy'] * 100 / template_interface['interface solvation energy'], 2)
+                            elif model_interface['interface solvation energy'] > 0 and template_interface['interface solvation energy'] < 0:
+                                relative_energy = 0
+                            elif model_interface['interface solvation energy'] < 0 and template_interface['interface solvation energy'] > 0:
+                                relative_energy = 100
+                            elif model_interface['interface solvation energy'] > 0 and template_interface['interface solvation energy'] > 0:
+                                relative_energy = 0
+
+                        print('Delta Interface Solvation Energy: '+emphasis_color+str(delta_energy)+clrs['n']+' kcal/mol ('+str(relative_energy)+'%)')
                         if delta_hb >= 0:
+                            relative_hb = 100
                             emphasis_color = clrs['g']
                         else:
                             emphasis_color = clrs['r']
-                        print('Delta Hydrogen Bonds: '+emphasis_color+str(delta_hb)+clrs['n'])
+                            relative_hb = round(model_interface['hydrogen bonds'] * 100 / template_interface['hydrogen bonds'], 2)
+                        print('Delta Hydrogen Bonds: '+emphasis_color+str(delta_hb)+clrs['n']+' ('+str(relative_hb)+'%)')
                         if delta_sb >= 0:
+                            relative_sb = 100
                             emphasis_color = clrs['g']
                         else:
+                            relative_sb = round(model_interface['salt bridges'] * 100 / template_interface['salt bridges'], 2)
                             emphasis_color = clrs['r']
-                        print('Delta Salt Bridges: '+emphasis_color+str(delta_sb)+clrs['n'])
+                        print('Delta Salt Bridges: '+emphasis_color+str(delta_sb)+clrs['n']+' ('+str(relative_sb)+'%)')
                         if delta_ss >= 0:
+                            relative_ss = 100
                             emphasis_color = clrs['g']
                         else:
+                            relative_ss = round(model_interface['disulphide bridges'] * 100 / template_interface['disulphide bridges'], 2)
                             emphasis_color = clrs['r']
-                        print('Delta Disulphide Bridges: '+emphasis_color+str(delta_ss)+clrs['n']+"\n")
+                        print('Delta Disulphide Bridges: '+emphasis_color+str(delta_ss)+clrs['n']+' ('+str(relative_ss)+'%)\n')
+
+                        comparison_data['score'] = round((relative_area+2*relative_energy+2*relative_hb+3*relative_sb+4*relative_ss)/12, 2)
+                        print('Interface score: '+str(comparison_data['score']))
+                        interfaces_comparison[''.join(sorted(model_interface['chains']))] = comparison_data
 
             report['comparison_plots'] = os.path.basename(plot_deltas(model_oligomer_name, template, interfaces_comparison, args))
+            summed_score = 0
+            for interface, data in interfaces_comparison.items():
+                summed_score += data['score']
+
+            report['interfaces_score'] = round(summed_score/(10*len(interfaces_comparison)), 2)
+            print('Final interfaces score: '+str(report['interfaces_score']))
 
         if 'G' in args.assessment:
             pctools.print_subsection('3.'+str(n)+'[G]', 'GESAMT Comparison')
@@ -391,6 +439,25 @@ def analyse_oligomers(input_file, template_hitchain, oligomers_list, interfaces_
             print('Clashscore\t'+str(template_molprobity['clashscore'])+'\t'+str(model_molprobity['clashscore']))
             print('Molprob. Score\t'+str(template_molprobity['molprobity_score'])+'\t'+str(model_molprobity['molprobity_score']))
             report['molprobity_radar'] = plot_molprobity(model_oligomer_name, model_molprobity, template, template_molprobity)
+            delta_clashscore = (model_molprobity['clashscore'] - template_molprobity['clashscore'])/10
+            print('Delta clashscore: '+str(delta_clashscore))
+            if delta_clashscore >= 1:
+                report['quality_score'] = round(10 - math.log(delta_clashscore**5, 10), 2)
+            else:
+                report['quality_score'] = 10
+            print('Final quality score: '+str(report['quality_score']))
+
+
+        if args.sequence_mode is False:
+            report['protchoir_score'] = round(sum([report['interfaces_score'], report['surface_score'], report['quality_score']])/3, 2)
+        else:
+            report['protchoir_score'] = round(sum([report['interfaces_score'], report['quality_score']])/2, 2)
+        if report['protchoir_score'] <= 5:
+            report['score_color'] = 'red'
+        elif 5 < report['protchoir_score'] <= 7:
+            report['score_color'] = 'orange'
+        elif report['protchoir_score'] > 7:
+            report['score_color'] = 'green'
 
         pickle.dump(report, open(model_oligomer_name+'_CHOIR_Report.pickle', 'wb'))
 
