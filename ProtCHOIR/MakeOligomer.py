@@ -2,22 +2,17 @@
 ###############################################################################
 import os
 import sys
+import time
 import gzip
 import itertools
+import subprocess
 import collections
 import Bio.PDB as bpp
 import importlib.util
 import ProtCHOIR.Toolbox as pctools
+from multiprocessing import Pool
 from ProtCHOIR.Initialise import *
 
-# pdb_file = '/data/choirdb/pdb1/c8/2c8i.pdb1.gz'
-# pdb = gzip.open(pdb, 'rt')
-# structure = p.get_structure('2c8i', pdb)
-# structure.child_dict
-# len(bpp.Selection.unfold_entities(structure, 'C'))
-# structure2, test = pctools.split_states(structure)
-#
-# pctools.extract_seqs(structure2, 0)
 # LICENSE
 ###############################################################################
 '''
@@ -41,14 +36,18 @@ This project is licensed under Creative Commons license (CC-BY-4.0)
 # Description
 ###############################################################################
 
+
 # Dictionaries
 ###############################################################################
+
 
 # Global Variables
 ###############################################################################
 
+
 # Classes
 ###############################################################################
+
 
 # Functions
 ###############################################################################
@@ -56,10 +55,9 @@ def make_local_template(best_oligo_template):
     middle_letters_best = best_oligo_template[1:3]
     best_template_file = os.path.join(pdb_homo_archive, middle_letters_best, best_oligo_template+".pdb.gz")
     clean_template_file = os.path.join(workdir, best_oligo_template+"_CHOIR_CleanTemplate.pdb")
-    with open(clean_template_file, 'w') as f:
-        for line in gzip.open(best_template_file, 'rt').readlines():
-            if line.startswith('ATOM'):
-                f.write(line)
+    pdb_name, structure, nchains = pctools.parse_any_structure(best_template_file)
+    io.set_structure(structure)
+    io.save(clean_template_file, pctools.SelectIfCA())
     return clean_template_file
 
 
@@ -125,10 +123,11 @@ def restore_chain_identifiers(pdb_file, chains_dict, full_residue_mapping):
     return restored_chains_file
 
 
-def alignment_from_sequence(best_oligo_template, renamed_chains_file, input_fasta, current_chain):
-    input_basename = os.path.basename(input_fasta).split('_CHOIR_MonomerSequence.fasta')[0]
-    print('Running '+clrs['b']+'MODELLER'+clrs['n']+' to align '+clrs['y']+input_basename+clrs['n']+' to '+clrs['y']+best_oligo_template+clrs['n']+' - Chain '+clrs['y']+current_chain+clrs['n'])
-    output_basename = input_basename+'_'+best_oligo_template+current_chain
+def alignment_from_sequence(current_chain):
+    output = []
+    input_basename = os.path.basename(g_input_file).split('_CHOIR_MonomerSequence.fasta')[0]
+    output.append('Running '+clrs['b']+'MODELLER'+clrs['n']+' to align '+clrs['y']+input_basename+clrs['n']+' to '+clrs['y']+best_oligo_template_code+clrs['n']+' - Chain '+clrs['y']+current_chain+clrs['n']+'...')
+    output_basename = input_basename+'_'+best_oligo_template_code+current_chain
     genali_file = os.path.join(workdir, output_basename+'_CHOIR_Genali.py')
     temp_out = os.path.join(workdir, output_basename+'_CHOIR_Align2Dtemp.fasta')
     fasta_out = os.path.join(workdir, output_basename+'_CHOIR_Align2D.fasta')
@@ -136,7 +135,7 @@ def alignment_from_sequence(best_oligo_template, renamed_chains_file, input_fast
         f.write('from modeller import *\nenv = environ()\naln = alignment(env)\n')
         f.write("mdl = model(env, file='"+renamed_chains_file+"', model_segment=('FIRST:"+current_chain+"','LAST:"+current_chain+"'))\n")
         f.write("aln.append_model(mdl, align_codes='"+os.path.basename(renamed_chains_file)+"("+current_chain+")', atom_files='"+renamed_chains_file+"')\n")
-        f.write("aln.append(file='"+input_fasta+"', align_codes='"+input_basename+"',alignment_format='FASTA', remove_gaps=False)\n")
+        f.write("aln.append(file='"+g_input_file+"', align_codes='"+input_basename+"',alignment_format='FASTA', remove_gaps=False)\n")
         f.write('aln.align2d()\n')
         f.write("aln.write(file='"+temp_out+"', alignment_format='FASTA')")
     alignment_log = genali_file.replace('.py', '.log')
@@ -159,7 +158,8 @@ def alignment_from_sequence(best_oligo_template, renamed_chains_file, input_fast
                 outfile.write(line.replace('\n', ''))
             n += 1
     os.remove(temp_out)
-    return fasta_out
+    output.append('DONE\n')
+    return fasta_out, '\n'.join(output)
 
 
 def generate_ali(alignments, best_oligo_template, residue_index_mapping, args):
@@ -285,26 +285,21 @@ def generate_ali(alignments, best_oligo_template, residue_index_mapping, args):
 
 def create_genmodel(final_alignment, best_oligo_template, chains, args):
     genmodel_file = os.path.join(workdir, input_name+'_'+best_oligo_template+'_CHOIR_Genmodel.py')
+    modelclass_file = os.path.join(workdir, input_name+'_'+best_oligo_template+'_CHOIR_ModelClass')
     for line in open(final_alignment, 'r').readlines():
         if line.startswith('sequence:'):
             sequence_name = line.split(':')[1]
         if line.startswith('structureX:'):
             template_structure = line.split(':')[1]
     with open(genmodel_file, 'w') as f:
-        f.write('from modeller import *\nfrom modeller.automodel import *\n\nlog.verbose()\n\n\n')
-        if args.symmetry is True:
-            f.write('class symmodel(automodel):\n\tdef special_restraints(self,aln):\n')
-            for chain_i, chain_j in itertools.combinations(chains, 2):
-                f.write("\t\tself.restraints.symmetry.append(symmetry(selection(self.chains['"+chain_i+"']), selection(self.chains['"+chain_j+"']), 1.0))\n")
-            f.write('\tdef user_after_single_model(self):\n\t\tself.restraints.symmetry.report(1.0)\n\n')
-            f.write('\tdef special_patches(self,aln):\n\t\tself.rename_segments(segment_ids='+str(sorted(chains))+', renumber_residues='+str([1]*len(chains))+')\n\n')
-            f.write('env = environ()\n\n')
-            f.write("a = symmodel(env, alnfile='"+final_alignment+"', knowns=('"+template_structure+"'), sequence='"+sequence_name+"', assess_methods=(assess.DOPE, assess.GA341))\n")
-        else:
-            f.write('class renumbermodel(automodel):\n')
-            f.write('\tdef special_patches(self,aln):\n\t\tself.rename_segments(segment_ids='+str(sorted(chains))+', renumber_residues='+str([1]*len(chains))+')\n\n')
-            f.write('env = environ()\n\n')
-            f.write("a = renumbermodel(env, alnfile='"+final_alignment+"', knowns=('"+template_structure+"'), sequence='"+sequence_name+"', assess_methods=(assess.DOPE, assess.GA341))\n")
+        f.write('from modeller import *\nfrom modeller.automodel import *\nfrom '+os.path.basename(modelclass_file)+' import CHOIRModel\n')
+        if args.modeller_threads > 1:
+            f.write('from modeller.parallel import *\n')
+        f.write('\nlog.verbose()\n\n\n')
+        if args.modeller_threads > 1:
+            f.write('j = job()\nfor i in range('+str(args.modeller_threads)+'):\n\tj.append(local_slave())\n\n')
+        f.write('env = environ()\n\n')
+        f.write("a = CHOIRModel(env, alnfile='"+final_alignment+"', knowns=('"+template_structure+"'), sequence='"+sequence_name+"', assess_methods=(assess.DOPE, assess.GA341))\n")
         f.write("a.starting_model = 1\na.ending_model = "+str(args.models)+"\n")
         if args.refine_level == 0:
             f.write("a.library_schedule = autosched.very_fast\na.max_var_iterations = 1000\n")
@@ -318,9 +313,27 @@ def create_genmodel(final_alignment, best_oligo_template, chains, args):
             f.write("a.library_schedule = autosched.slow\na.max_var_iterations = 1000\na.md_level = refine.slow\n")
         if args.repeat_opt > 0:
             f.write("a.repeat_optimization = "+str(args.repeat_opt)+"\n")
+        if args.modeller_threads > 1:
+            f.write("a.use_parallel_job(j)\n")
         f.write("a.make()")
+
+    with open(modelclass_file+'.py', 'w') as f:
+        f.write('from modeller import *\nfrom modeller.automodel import *\n')
+        if args.symmetry is True:
+            f.write('class CHOIRModel(automodel):\n\tdef special_restraints(self,aln):\n')
+            for chain_i, chain_j in itertools.combinations(chains, 2):
+                f.write("\t\tself.restraints.symmetry.append(symmetry(selection(self.chains['"+chain_i+"']), selection(self.chains['"+chain_j+"']), 1.0))\n")
+            f.write('\tdef user_after_single_model(self):\n\t\tself.restraints.symmetry.report(1.0)\n\n')
+            f.write('\tdef special_patches(self,aln):\n\t\tself.rename_segments(segment_ids='+str(sorted(chains))+', renumber_residues='+str([1]*len(chains))+')\n\n')
+        else:
+            f.write('class CHOIRModel(automodel):\n')
+            f.write('\tdef special_patches(self,aln):\n\t\tself.rename_segments(segment_ids='+str(sorted(chains))+', renumber_residues='+str([1]*len(chains))+')\n\n')
+
+
+
     print('Modeller script written to '+clrs['g']+os.path.basename(genmodel_file)+clrs['n']+'\n')
-    expected_models = [input_name+'.B9999000'+str(n)+'.pdb' for n in range(1, args.models+1)]
+    print('Modeller class written to '+clrs['g']+os.path.basename(modelclass_file)+'.py'+clrs['n']+'\n')
+    expected_models = [input_name+'.B9999'+str('{0:04d}'.format(n))+'.pdb' for n in range(1, args.models+1)]
     return genmodel_file, expected_models
 
 
@@ -338,37 +351,97 @@ def run_modeller(genmodel_file):
     print('Done running '+clrs['b']+'MODELLER'+clrs['n']+'\n')
 
 
+def analyse_largest_complexes(item):
+    output = []
+    hitchain, chains = item
+    template, hit_chain = hitchain.split(':')
+    middle_letters = template[1:3]
+    template_file = os.path.join(pdb_homo_archive, middle_letters, template+".pdb.gz")
+    sum_qscore = 0
+    chain_n = 0
+    for chain in chains:
+        chain_n += 1
+        qscore, rmsd, fasta_out, gesamt_output = pctools.run_gesamt(template, template_file, input_name, g_input_file, chain, g_args)
+        sum_qscore += float(qscore)
+        output.append(gesamt_output)
+
+    average_qscore = sum_qscore/chain_n
+    output.append('--\n\nAverage Q-Score for all candidate chains is '+clrs['c']+str(average_qscore)+clrs['n']+'\n')
+    output.append('-------------------------------------------------------------------\n')
+
+    return hitchain, average_qscore, '\n'.join(output)
+
+
+def run_gesamt_parallel(chain):
+    output = []
+    output.append('Running '+clrs['b']+'GESAMT'+clrs['n']+' to align '+clrs['y']+input_name+clrs['n']+' to '+clrs['y']+best_oligo_template_code+clrs['n']+' - Chain '+clrs['y']+chain+clrs['n'])
+    fasta_out = input_name+"_"+best_oligo_template_code+chain+'_CHOIR_Gesamt.fasta'
+    gesamtcmd = [gesamt_exe, renamed_chains_file, '-s', chain, g_input_file, '-a', fasta_out]
+    if g_args.verbosity == 1:
+        output.append(clrs['b']+'GESAMT'+clrs['n']+' command line: '+' '.join(gesamtcmd))
+    gesout = subprocess.check_output(gesamtcmd).decode('utf-8').split('\n')
+    time.sleep(1)
+    for line in gesout:
+        if line.startswith(' Q-score          :'):
+            qscore = line.split(':')[1].strip()
+            output.append(line.strip())
+        if line.startswith(' RMSD             :'):
+            rmsd = line.split(':')[1].strip()
+            output.append(line.strip())
+        if line.startswith(' Aligned residues :'):
+            al_res = line.split(':')[1].strip()
+            output.append(line.strip())
+        if line.startswith(' Sequence Id:     :'):
+            id = line.split(':')[1].strip()
+            output.append(line.strip())
+
+    if not os.path.isfile(fasta_out):
+        output.append(clrs['r']+'GESAMT FAILED'+clrs['n'])
+        qscore = 0
+        rmsd = 0
+        fasta_out = 'NONE'
+    output.append('Done running '+clrs['b']+'GESAMT'+clrs['n']+'. Alignment written to '+clrs['g']+os.path.basename(fasta_out)+clrs['n']+'\n')
+
+    return qscore, rmsd, fasta_out, '\n'.join(output)
+
+
 # Main Function
 ###############################################################################
 def make_oligomer(input_file, largest_oligo_complexes, report, args, residue_index_mapping=None):
     global workdir
     global input_name
     global verbosity
+    global g_input_file
+    global g_args
+    global best_oligo_template_code
+    global renamed_chains_file
+    g_input_file = input_file
+    g_args = args
     verbosity = args.verbosity
     workdir = os.getcwd()
     symmetry = args.symmetry
+
+    # Subsection 2[a] #######################################################################
     if args.sequence_mode is False:
         input_name = os.path.basename(input_file).split(".pdb")[0].replace('.', '_')
         candidate_qscores = {}
         # Select structurally best oligomeric template using GESAMT
         pctools.print_section(2, 'OLIGOMER ASSEMBLING')
         pctools.print_subsection('2[a]', 'Structural template selection')
-        for hitchain, chains in largest_oligo_complexes.items():
-            template, hit_chain = hitchain.split(':')
-            middle_letters = template[1:3]
-            template_file = os.path.join(pdb_homo_archive, middle_letters, template+".pdb.gz")
-            sum_qscore = 0
-            chain_n = 0
-            for chain in chains:
-                chain_n += 1
-                qscore, rmsd, fasta_out = pctools.run_gesamt(template, template_file, input_name, input_file, chain, args, delfasta=True)
-                sum_qscore += float(qscore)
-
-            average_qscore = sum_qscore/chain_n
-            report['hits'][hitchain]['qscore'] = round(average_qscore, 3)
-            print('--\n\nAverage Q-Score for all candidate chains is '+clrs['c']+str(average_qscore)+clrs['n']+'\n')
-            print('-------------------------------------------------------------------\n')
-            candidate_qscores[hitchain] = average_qscore
+        if args.multiprocess is True:
+            p = Pool()
+            for hitchain, average_qscore, output in p.map_async(analyse_largest_complexes, largest_oligo_complexes.items()).get():
+                candidate_qscores[hitchain] = average_qscore
+                report['hits'][hitchain]['qscore'] = round(average_qscore, 3)
+                print(output)
+            p.close()
+            p.join()
+        else:
+            for item in largest_oligo_complexes.items():
+                hitchain, average_qscore, output = analyse_largest_complexes(item)
+                candidate_qscores[hitchain] = average_qscore
+                report['hits'][hitchain]['qscore'] = round(average_qscore, 3)
+                print(output)
 
         best_oligo_template = max(candidate_qscores.keys(), key=(lambda x: candidate_qscores[x]))
         if candidate_qscores[best_oligo_template] >= args.qscore_cutoff:
@@ -376,21 +449,22 @@ def make_oligomer(input_file, largest_oligo_complexes, report, args, residue_ind
             report['best_template'] = best_oligo_template.split(':')[0]
             report['best_id'] = report['hits'][best_oligo_template]['id']
             report['best_cov'] = report['hits'][best_oligo_template]['coverage']
-            report['best_qscore'] = report['hits'][best_oligo_template]['score']
+            report['best_qscore'] = report['hits'][best_oligo_template]['qscore']
             report['best_nchains'] = report['hits'][best_oligo_template]['final_homo_chains']
         else:
-            print('No template had an average Q-score above cut-off of'+clrs['c']+str(args.qscore_cutoff)+clrs['n']+'\nTry lowering the cutoff or running in sequence mode.\n')
-            pctools.print_sorry()
-            quit()
+            print('No template had an average Q-score above cut-off of '+clrs['c']+str(args.qscore_cutoff)+clrs['n']+'\nTry lowering the cutoff or running in sequence mode.\n')
+            return None, None, report
 
 
     elif args.sequence_mode is True:
         if input_file.endswith('.pdb'):
             input_name = os.path.basename(input_file).split(".pdb")[0].replace('.', '_')
             input_file = os.path.join(workdir, input_name+'_CHOIR_MonomerSequence.fasta')
+            g_input_file = input_file
 
         elif input_file.endswith('_CHOIR_MonomerSequence.fasta'):
             input_name = os.path.basename(input_file).split("_CHOIR_MonomerSequence.fasta")[0]
+
         pctools.print_section(2, 'OLIGOMER ASSEMBLING - SEQUENCE MODE')
         print(clrs['y']+"Skipping section 2[a] - Structural template selection"+clrs['n']+"\n")
         best_oligo_template = list(largest_oligo_complexes)[0]
@@ -399,28 +473,49 @@ def make_oligomer(input_file, largest_oligo_complexes, report, args, residue_ind
         report['best_cov'] = report['hits'][best_oligo_template]['coverage']
         report['best_qscore'] = 'N/A'
         report['best_nchains'] = report['hits'][best_oligo_template]['final_homo_chains']
+
     report['topology_figure'] = './'+best_oligo_template.replace(':', '_')+'_CHOIR_Topology.png'
     template_chains = largest_oligo_complexes[best_oligo_template]
     best_oligo_template_code = best_oligo_template.split(':')[0]
     clean_template_file = make_local_template(best_oligo_template_code)
     relevant_chains_file = extract_relevant_chains(clean_template_file, template_chains)
-    report['template_figure'] = pctools.pymol_screenshot(relevant_chains_file, args)
+    report['template_figure'], pymol_output = pctools.pymol_screenshot(relevant_chains_file, args)
+    print(pymol_output)
     renamed_chains_file, chains_dict = rename_relevant_chains(relevant_chains_file)
     relevant_chains = [chains_dict[template_chain] for template_chain in template_chains]
 
+    # Subsection 2[b] #######################################################################
     pctools.print_subsection('2[b]', 'Generating alignment')
     # Generate per chain alignment files
     alignment_files = []
     if args.sequence_mode is False:
-        for original_chain, current_chain in chains_dict.items():
-            qscore, rmsd, fasta_out = pctools.run_gesamt(best_oligo_template_code, renamed_chains_file, input_name, input_file, current_chain, args, delfasta=False)
-            alignment_files.append(fasta_out)
+        if args.multiprocess is True:
+            p = Pool()
+            for qscore, rmsd, fasta_out, gesamt_output in p.map_async(run_gesamt_parallel, chains_dict.values()).get():
+                alignment_files.append(fasta_out)
+                print(gesamt_output)
+            p.close()
+            p.join()
+        else:
+            for chain in chains_dict.values():
+                qscore, rmsd, fasta_out, gesamt_output = run_gesamt_parallel(chain)
+                alignment_files.append(fasta_out)
+                print(gesamt_output)
+
     elif args.sequence_mode is True:
-        for original_chain, current_chain in chains_dict.items():
-            fasta_out = alignment_from_sequence(best_oligo_template_code, renamed_chains_file, input_file, current_chain)
-            alignment_files.append(fasta_out)
+        if args.multiprocess is True:
+            p = Pool()
+            for fasta_out, output in p.map_async(alignment_from_sequence, chains_dict.values()).get():
+                alignment_files.append(fasta_out)
+                print(output)
+        else:
+            for current_chain in chains_dict.values():
+                fasta_out, output = alignment_from_sequence(best_oligo_template_code, renamed_chains_file, input_file, current_chain)
+                alignment_files.append(fasta_out)
+                print(output)
     print('Alignment files:\n'+clrs['g']+('\n').join([os.path.basename(i) for i in alignment_files])+clrs['n'])
 
+    # Subsection 2[c] #######################################################################
     # Generate final alignment which will be the input for Modeller
     final_alignment, full_residue_mapping = generate_ali(alignment_files, best_oligo_template_code, residue_index_mapping, args)
     pctools.print_subsection('2[c]', 'Generating models')

@@ -4,7 +4,8 @@
 ###############################################################################
 from datetime import datetime
 # Mark Initiation time
-start_time = datetime.timestamp(datetime.now())-1
+start_timestamp = datetime.timestamp(datetime.now())-1
+start_time = datetime.now()
 import os
 import sys
 import time
@@ -16,6 +17,7 @@ import argparse
 import textwrap as tw
 import ProtCHOIR.Toolbox as pctools
 from ProtCHOIR.Initialise import *
+from multiprocessing import cpu_count
 from ProtCHOIR.UpdateDatabases import update_databases
 from ProtCHOIR.AnalyseProtomer import analyze_protomer
 from ProtCHOIR.MakeOligomer import make_oligomer
@@ -54,14 +56,96 @@ This project is licensed under Creative Commons license (CC-BY-4.0)
 # Classes
 ###############################################################################
 
+
 # Functions
 ###############################################################################
+def finalize(reports, input_basename, start_time, start_timestamp, args):
+    report_data = ['input_filename', 'sequence_mode', 'vivacemodel', 'protomer_residues', 'tmspans', 'highest_scoring_state', 'homo_oligomeric_over_other_score', 'best_template', 'best_nchains', 'best_id', 'best_cov', 'best_qscore', 'model_oligomer_name', 'model_molprobity', 'gesamt_rmsd', 'protchoir_score', 'surface_score', 'interfaces_score', 'quality_score', 'total_runtime']
+    if type(reports) is list:
+        if args.zip_output == 2:
+            # Don't prevent compression of anything
+            nozip = []
+            for report in reports:
+                if args.generate_report is True:
+                    report['html_report'] = pctools.html_report(report, args)
+        else:
+            # Prevent compression of files needed for the report and the models
+            nozip = [os.path.basename(report['model_filename']) for report in reports]
+            for report in reports:
+                if args.generate_report is True:
+                    report['html_report'] = pctools.html_report(report, args)
+                    for key, value in report.items():
+                        if key in ['html_report', 'molprobity_radar', 'comparison_plots', 'protomer_figure', 'protomer_plot', 'template_figure', 'topology_figure', 'assemblied_protomer_plot', 'input_filename']:
+                            nozip.append(os.path.basename(value))
+                        if key == 'model_figures':
+                            for figure in value:
+                                nozip.append(os.path.basename(figure))
+
+
+        best_report = sorted(reports, key=operator.itemgetter('protchoir_score'))[-1]
+
+    elif type(reports) is dict:
+        nozip = []
+        best_report = reports
+        for data in report_data:
+            if data not in best_report:
+                best_report[data] = 'NA'
+
+    # Generate summary tsv file for the best report
+    end_time = datetime.now()
+    runtime = end_time - start_time
+    best_report['total_runtime'] = str(runtime.seconds)
+    summary_file = input_basename+'_CHOIR_Summary.tsv'
+    nozip.append(summary_file)
+
+
+    with open(summary_file, 'w') as f:
+        f.write('Input\tSeq.Mode\tVivace\tLength\tTMSpans\tLikelyState\tH3OScore\tTemplate\tChains\tIdentity\tCoverage\tAv.QScore\tBestModel\tMolprobity\tRMSD\tProtCHOIR\tSurface\tInterfaces\tQuality\tRuntime\n')
+        f.write('\t'.join([str(best_report[data]) for data in report_data])+'\n')
+    # Finalise
+    final_end_time = datetime.timestamp(datetime.now())
+    time.sleep(1)
+
+    # Compress output
+    if args.zip_output > 0:
+        try:
+            import zlib
+            compression = zipfile.ZIP_DEFLATED
+        except (ImportError, AttributeError):
+            compression = zipfile.ZIP_STORED
+
+        with zipfile.ZipFile(input_basename+'_ProtCHOIR_OUT.zip', 'w', compression=compression) as zipf:
+            for f in os.listdir(os.getcwd()):
+                if f != input_basename+'_ProtCHOIR_OUT.zip' and os.path.getctime(f) > start_timestamp and os.path.getctime(f) < final_end_time:
+                    print('Compressing... '+f)
+                    zipf.write(f)
+                    if f not in nozip:
+                        if os.path.isdir(f):
+                            shutil.rmtree(f)
+                        elif os.path.isfile(f):
+                            os.remove(f)
+
+    print('FINISHED AT: '+datetime.now().strftime("%d-%m-%Y %H:%M"))
+    print('TOTAL RUNTIME: '+str(runtime.seconds)+' s')
 
 # Main Function
 ###############################################################################
 def main():
 
     args = initial_args
+
+    # Define multiprocessing options
+    args.available_cores = cpu_count()
+
+    if args.force_single_core is True:
+        args.multiprocess = False
+        args.psiblast_threads = 1
+        args.modeller_threads = 1
+    else:
+        if args.psiblast_threads is None:
+            args.psiblast_threads = args.available_cores
+        if args.modeller_threads is None:
+            args.modeller_threads = min([args.available_cores, args.models])
 
     if args.update is True:
         print(tw.dedent("""
@@ -164,6 +248,7 @@ def main():
 
         # If no suitable homo-oligomeric template wasfound, exit nicely.
         if analyse_protomer_results is None:
+            finalize(report, input_basename, start_time, start_timestamp, args)
             pctools.print_sorry()
             sys.exit(0)
 
@@ -190,63 +275,16 @@ def main():
         # Use information of complexes to build oligomers
         best_oligo_template, built_oligomers, report = make_oligomer(new_input_file, largest_oligo_complexes, report, args, residue_index_mapping=residue_index_mapping)
 
+        # If no models were built, exit nicely.
+        if built_oligomers is None:
+            finalize(report, input_basename, start_time, start_timestamp, args)
+            pctools.print_sorry()
+            sys.exit(0)
+
         # Analyse built models
         reports = analyse_oligomers(new_input_file, best_oligo_template, built_oligomers, interfaces_dict, tmdata, report, args, entropies=entropies, z_entropies=z_entropies, minx=minx, maxx=maxx)
+        finalize(reports, input_basename, start_time, start_timestamp, args)
 
-        # Generate HTML report
-        if args.zip_output == 2:
-            # Don't prevent compression of anything
-            nozip = []
-            for report in reports:
-                if args.generate_report is True:
-                    report['html_report'] = pctools.html_report(report, args)
-        else:
-            # Prevent compression of files needed for the report and the models
-            nozip = [os.path.basename(report['model_filename']) for report in reports]
-
-            print(nozip)
-            for report in reports:
-                if args.generate_report is True:
-                    report['html_report'] = pctools.html_report(report, args)
-                    for key, value in report.items():
-                        if key in ['html_report', 'molprobity_radar', 'comparison_plots', 'protomer_figure', 'protomer_plot', 'template_figure', 'topology_figure', 'assemblied_protomer_plot', 'input_filename']:
-                            nozip.append(os.path.basename(value))
-                        if key == 'model_figures':
-                            for figure in value:
-                                nozip.append(os.path.basename(figure))
-
-        # Generate summary tsv file for the best report
-        best_report = sorted(reports, key=operator.itemgetter('protchoir_score'))[-1]
-        report_data = ['input_filename', 'vivacemodel', 'protomer_residues', 'tmspans', 'best_template', 'best_nchains', 'best_id', 'best_cov', 'best_qscore', 'model_oligomer_name', 'model_molprobity', 'gesamt_rmsd', 'protchoir_score', 'surface_score', 'interfaces_score', 'quality_score']
-        summary_file = input_basename+'_CHOIR_Summary.tsv'
-        nozip.append(summary_file)
-        with open(summary_file, 'w') as f:
-            f.write('Input\tVivace\tLength\tTMSpans\tTemplate\tChains\tIdentity\tCoverage\tAv.QScore\tBestModel\tMolprobity\tRMSD\tProtCHOIR\tSurface\tInterfaces\tQuality\n')
-            f.write('\t'.join([str(best_report[data]) for data in report_data])+'\n')
-        # Finalise
-        end_time = datetime.timestamp(datetime.now())
-        time.sleep(1)
-
-        # Compress output
-        if args.zip_output > 0:
-            try:
-                import zlib
-                compression = zipfile.ZIP_DEFLATED
-            except (ImportError, AttributeError):
-                compression = zipfile.ZIP_STORED
-
-            with zipfile.ZipFile(pdb_name+'_ProtCHOIR_OUT.zip', 'w', compression=compression) as zipf:
-                for f in os.listdir(os.getcwd()):
-                    if f != pdb_name+'_ProtCHOIR_OUT.zip' and os.path.getctime(f) > start_time and os.path.getctime(f) < end_time:
-                        print('Compressing... '+f)
-                        zipf.write(f)
-                        if f not in nozip:
-                            if os.path.isdir(f):
-                                shutil.rmtree(f)
-                            elif os.path.isfile(f):
-                                os.remove(f)
-
-        print('FINISHED AT: '+datetime.now().strftime("%d-%m-%Y %H:%M"))
 
 
 # Execute

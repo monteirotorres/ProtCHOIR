@@ -10,7 +10,7 @@ with open(path.join(here, 'README.rst'), encoding='utf-8') as f:
 setup(
   name = 'ProtCHOIR',
   packages = ['ProtCHOIR'],
-  version = '1.1.0',
+  version = '1.2.0',
   description = 'A Modeller-based pipeline to generate homo-oligomers.',
   long_description = long_description,
   license='CC-BY-4.0',

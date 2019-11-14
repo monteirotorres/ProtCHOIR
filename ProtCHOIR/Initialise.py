@@ -153,11 +153,12 @@ parser.add_argument('-q', '--qscore-cutoff',
                     metavar='',
                     help='Determines the cut-off for average GESAMT Q-score When comparing the protomer with each chain of template oligomers.  Ignored when using the ignore-protomer option.')
 
-parser.add_argument('-l', '--ligand',
-                    dest='ligand',
-                    type=str, default='0',
+parser.add_argument('-t', '--tolerance',
+                    dest='tolerance',
+                    type=float, default=15,
                     metavar='',
-                    help='[0] Do not consider ligands.[1] Keep ligands in query structure.[2] Keep ligands found in templates.')
+                    help='Determines the maximum allowed percent difference between PSI-BLAST scores in order to attempt modelling')
+
 
 parser.add_argument('-r', '--refine-level',
                     dest='refine_level',
@@ -189,6 +190,30 @@ parser.add_argument('--plot-topologies',
                     action='store_true',
                     default=False,
                     help='Plot oligmerization topologies of all candidate oligomeric templates')
+
+parser.add_argument('--psiblast-threads',
+                    dest='psiblast_threads',
+                    type=int,
+                    metavar='',
+                    help='Number of threads to use for PSI-BLAST, defaults to the number of processors')
+
+parser.add_argument('--modeller-threads',
+                    dest='modeller_threads',
+                    type=int,
+                    metavar='',
+                    help='Number of threads to use for MODELLER, defaults to the smallest vaule between the number of processors or number of models')
+
+parser.add_argument('--multiprocess',
+                    dest='multiprocess',
+                    action='store_true',
+                    default=False,
+                    help='Defines whether python multiprocessing should be enabled for compatible lenghty tasks')
+
+parser.add_argument('--single-core',
+                    dest='force_single_core',
+                    action='store_true',
+                    default=False,
+                    help='Forces all individual tasks and programs to run in a single core. Disables multiprocessing.')
 
 parser.add_argument('--skip-conservation',
                     dest='skip_conservation',
@@ -350,6 +375,7 @@ CAPRA, J. A.; SINGH, M. Predicting functionally important residues from sequence
 conservation. Bioinformatics, 2007.
 '''
 True and False
+
 # Initialise
 ###############################################################################
 print_welcome_message()
@@ -411,6 +437,12 @@ pdb_homo_archive = os.path.join(choirdb, 'pdb_homo_archive')
 
 # Blast database on homo-oligomers
 homoblast = os.path.join(pdb_homo_archive, 'sequences/homodb')
+
+# Blast database on monomers
+monoblast = os.path.join(pdb_homo_archive, 'sequences/monodb')
+
+# Blast database on hetero-oligomers
+heteroblast = os.path.join(pdb_homo_archive, 'sequences/heterodb')
 
 # Blast database on UniRef50
 uniref50 = os.path.join(choirdb, 'uniref50/uniref50')

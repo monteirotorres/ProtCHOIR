@@ -3,6 +3,7 @@
 import os
 import re
 import sys
+import time
 import gzip
 import shutil
 import jinja2
@@ -70,6 +71,17 @@ class SelectAA(bpp.Select):
     '''
     def accept_residue(self, residue):
         if bpp_poly.is_aa(residue.get_resname(), standard=True):
+            return 1
+        else:
+            return 0
+
+class SelectIfCA(bpp.Select):
+    '''
+    Biopython select class to select only aminoacids that contain the alfa-carbon
+    Called by: clean_pdb()
+    '''
+    def accept_residue(self, residue):
+        if residue.has_id('CA'):
             return 1
         else:
             return 0
@@ -163,6 +175,26 @@ def print_section(n, name):
           clrs['y']+'+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+\n' +
           clrs['n'])
 
+def section(n, name):
+    '''
+    Function to return section header.
+    '''
+    section_string = str('\n'+clrs['y']+'+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+\n' +
+                         clrs['r']+'|' +
+                         clrs['y']+'S'+clrs['r']+'|' +
+                         clrs['y']+'E'+clrs['r']+'|' +
+                         clrs['y']+'C'+clrs['r']+'|' +
+                         clrs['y']+'T'+clrs['r']+'|' +
+                         clrs['y']+'I'+clrs['r']+'|' +
+                         clrs['y']+'O'+clrs['r']+'|' +
+                         clrs['y']+'N'+clrs['r']+'|' +
+                         clrs['c']+' '+str(n)+clrs['r']+' | ' +
+                         clrs['c']+str(name)+'\n' +
+                         clrs['y']+'+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+\n' +
+                         clrs['n'])
+
+    return section_string
+
 
 def print_subsection(n, name):
     '''
@@ -184,6 +216,28 @@ def print_subsection(n, name):
           clrs['y']+'+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+\n' +
           clrs['n'])
 
+
+def subsection(n, name):
+    '''
+    Function to return section header.
+    '''
+    subsection_string = str('\n'+clrs['r']+'|' +
+                            clrs['y']+'S' +
+                            clrs['y']+'u' +
+                            clrs['y']+'b' +
+                            clrs['y']+'s' +
+                            clrs['y']+'e' +
+                            clrs['y']+'c' +
+                            clrs['y']+'t' +
+                            clrs['y']+'i' +
+                            clrs['y']+'o' +
+                            clrs['y']+'n' +
+                            clrs['c']+' '+str(n)+clrs['r']+'| ' +
+                            clrs['c']+str(name)+'\n' +
+                            clrs['y']+'+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+\n' +
+                            clrs['n'])
+
+    return subsection_string
 
 def print_sorry():
     print('**We are '+clrs['y']+'t'+clrs['r']+'e'+
@@ -620,7 +674,10 @@ def run_pisa(pdb, chain, verbosity, gen_monomer_data=False, gen_oligomer_data=Fa
         output.append(clrs['r']+'PISA command '+' '.join(pisa_cmd5)+' returned non-zero status\n'+clrs['n'])
         pisa_error = True
 
-    shutil.rmtree(pisa_tmp_dir)
+    try:
+        shutil.rmtree(pisa_tmp_dir)
+    except:
+        pass
 
     if gen_monomer_data is True:
         return '\n'.join(output), pisa_error, monomer_data
@@ -759,53 +816,59 @@ def parse_interfaces(interfaces_xml, candidate_chains, verbosity):
                     interfaces_list.append(interface_dict)
     return interfaces_list, '\n'.join(output)
 
-def run_gesamt(reference_name, reference_pdb, target_name, target_pdb, chain, args, delfasta=False):
-
+def run_gesamt(reference_name, reference_pdb, target_name, target_pdb, chain, args):
+    output = []
     if chain is None:
-        print('Running '+clrs['b']+'GESAMT'+clrs['n']+' to align '+clrs['y']+target_name+clrs['n']+' to '+clrs['y']+reference_name+clrs['n'])
+        output.append('Running '+clrs['b']+'GESAMT'+clrs['n']+' to align '+clrs['y']+target_name+clrs['n']+' to '+clrs['y']+reference_name+clrs['n'])
         fasta_out = target_name+"_"+reference_name+'_CHOIR_Gesamt.fasta'
         gesamtcmd = ['/opt/ccp4/ccp4-7.0/bin/gesamt', reference_pdb, target_pdb, '-a', fasta_out]
     else:
-        print('Running '+clrs['b']+'GESAMT'+clrs['n']+' to align '+clrs['y']+target_name+clrs['n']+' to '+clrs['y']+reference_name+clrs['n']+' - Chain '+clrs['y']+chain+clrs['n'])
+        output.append('Running '+clrs['b']+'GESAMT'+clrs['n']+' to align '+clrs['y']+target_name+clrs['n']+' to '+clrs['y']+reference_name+clrs['n']+' - Chain '+clrs['y']+chain+clrs['n'])
         fasta_out = target_name+"_"+reference_name+chain+'_CHOIR_Gesamt.fasta'
-        gesamtcmd = [gesamt_exe, reference_pdb, '-s', chain, target_pdb, '-a', fasta_out, '-high']
-    printv(clrs['b']+'GESAMT'+clrs['n']+' command line: '+' '.join(gesamtcmd), args.verbosity)
+        output.append(fasta_out)
+        gesamtcmd = [gesamt_exe, reference_pdb, '-s', chain, target_pdb, '-a', fasta_out]
+    if args.verbosity == 1:
+        output.append(clrs['b']+'GESAMT'+clrs['n']+' command line: '+' '.join(gesamtcmd))
+
+    if 'qscore' in locals():
+        del qscore
+    if 'rmsd' in locals():
+        del rmsd
+    if 'id' in locals():
+        del id
+    if 'al_res' in locals():
+        del al_res
     gesout = subprocess.check_output(gesamtcmd).decode('utf-8').split('\n')
+
     for line in gesout:
         if line.startswith(' Q-score          :'):
             qscore = line.split(':')[1].strip()
-            print(line.strip())
+            output.append(line.strip())
         if line.startswith(' RMSD             :'):
             rmsd = line.split(':')[1].strip()
-            print(line.strip())
+            output.append(line.strip())
         if line.startswith(' Aligned residues :'):
             al_res = line.split(':')[1].strip()
-            print(line.strip())
+            output.append(line.strip())
         if line.startswith(' Sequence Id:     :'):
             id = line.split(':')[1].strip()
-            print(line.strip())
+            output.append(line.strip())
 
     if not os.path.isfile(fasta_out):
-        print(clrs['r']+'GESAMT FAILED'+clrs['n'])
-        qscore = 0
-        rmsd = 0
-        fasta_out = 'NONE'
-    if delfasta is False:
-        print('Done running '+clrs['b']+'GESAMT'+clrs['n']+'. Alignment written to '+clrs['g']+os.path.basename(fasta_out)+clrs['n']+'\n')
-    else:
-        if os.path.isfile(fasta_out):
-            os.remove(fasta_out)
-            print('Done running '+clrs['b']+'GESAMT'+clrs['n'])
-        else:
-            pass
+        output.append(clrs['r']+'GESAMT FAILED'+clrs['n'])
+        fasta_out = 'None'
 
-    return qscore, rmsd, fasta_out
+    output.append('Done running '+clrs['b']+'GESAMT'+clrs['n']+'.\n')
+
+    return qscore, rmsd, fasta_out, '\n'.join(output)
 
 
 def run_molprobity(structure_file, args):
-    print('Running '+clrs['b']+'Molprobity'+clrs['n']+' for '+clrs['y']+structure_file+clrs['n']+'\n')
+    output = []
+    output.append('\nRunning '+clrs['b']+'Molprobity'+clrs['n']+' for '+clrs['y']+structure_file+clrs['n']+'\n')
     molprobity_cmd = [molprobity_exe, structure_file, 'prefix='+structure_file.split('.')[0]+'_molprobity']
-    printv(clrs['b']+'Molprobity'+clrs['n']+' command line: '+' '.join(molprobity_cmd), args.verbosity)
+    if args.verbosity == 1:
+        output.append(clrs['b']+'Molprobity'+clrs['n']+' command line: '+' '.join(molprobity_cmd))
     molprobity_out = subprocess.check_output(molprobity_cmd).decode('utf-8').split('\n')
     molprobity_results = {}
     start_reading = False
@@ -826,7 +889,8 @@ def run_molprobity(structure_file, args):
                 molprobity_results['clashscore'] = float(line.strip().split()[2])
             if 'MolProbity score      =' in line:
                 molprobity_results['molprobity_score'] = float(line.strip().split()[3])
-    return molprobity_results
+    output.append('Done running '+clrs['b']+'Molprobity'+clrs['n']+'\n')
+    return molprobity_results, '\n'.join(output)
 
 def pymol_screenshot_mono(monomer_structure, z_entropies, args):
     outfile = os.path.basename(monomer_structure).replace('.pdb','.png')
@@ -868,10 +932,20 @@ def pymol_screenshot(structure_file, args, putty=False):
     outfile4 = os.path.basename(structure_file).replace('.pdb', '_putty180.png')
     outfile5 = os.path.basename(structure_file).replace('.pdb', '_putty270.png')
     prot = os.path.basename(structure_file).replace('.pdb', '')
-    pymolrc = 'pymolrc'
-    pymol_cmd = [pymol_exe, '-c']
-    with open(pymolrc, 'w') as f:
+    pymol_script = os.path.basename(structure_file).replace('.pdb', '.pml')
+    pymol_cmd = [pymol_exe, '-c', pymol_script]
+    if args.multiprocess is True:
+        if int(args.available_cores/args.models) >= 1:
+            max_cores = str(int(args.available_cores/args.models))
+        else:
+            max_cores = '1'
+    elif args.force_single_core is True:
+        max_cores = '1'
+    else:
+        max_cores = str(int(args.available_cores))
+    with open(pymol_script, 'w') as f:
         f.write(tw.dedent("""
+                          set max_threads, """+max_cores+"""
                           load """+structure_file+"""
                           set ray_opaque_background,0
                           set ray_shadows, 0
@@ -902,14 +976,14 @@ def pymol_screenshot(structure_file, args, putty=False):
                               # util.cbc
     try:
         subprocess.Popen(pymol_cmd, stdout=open(os.devnull, 'w'), stderr=subprocess.STDOUT).wait()
-        os.remove(pymolrc)
+        os.remove(pymol_script)
 
         if putty:
-            print('Oligomer images generated:\n'+clrs['g']+'\n'.join([outfile1, outfile2, outfile3, outfile4, outfile5])+clrs['n']+'\n')
-            return ['./'+outfile1, './'+outfile2, './'+outfile3, './'+outfile4, './'+outfile5]
+            output = 'Oligomer images generated:\n'+clrs['g']+'\n'.join([outfile1, outfile2, outfile3, outfile4, outfile5])+clrs['n']+'\n'
+            return ['./'+outfile1, './'+outfile2, './'+outfile3, './'+outfile4, './'+outfile5], output
         else:
-            print('Oligomer image generated: '+clrs['g']+outfile1+clrs['n']+'\n')
-            return './'+outfile1
+            output = 'Oligomer image generated: '+clrs['g']+outfile1+clrs['n']+'\n'
+            return './'+outfile1, output
     except subprocess.CalledProcessError:
         os.remove(pymolrc)
         print('Failed to run Pymol to generate image! Does pymol executable exist?')
@@ -1071,7 +1145,6 @@ def create_pisa_conf(confdir, id):
 def html_report(report, args):
     html_out = report['model_oligomer_name']+'_CHOIR_Report.html'
     templateLoader = jinja2.FileSystemLoader(searchpath=os.path.join(choir_path, 'Contents'))
-    print(choir_path)
     templateEnv = jinja2.Environment(loader=templateLoader)
     report_template = "report_template.html"
     template = templateEnv.get_template(report_template)
@@ -1117,6 +1190,7 @@ def map_residue_index(surface_residues):
 
 
 def plot_analysis(pdb_name, surface_residues, entropies, z_entropies, tmdata, args, minx=None, maxx=None):
+    output = []
     # Reset Matplotlib parameters to default
     matplotlib.rcParams.update(matplotlib.rcParamsDefault)
 
@@ -1149,7 +1223,8 @@ def plot_analysis(pdb_name, surface_residues, entropies, z_entropies, tmdata, ar
             if int(res[3:]) not in tmdata[1]:
                 hydrophobic_area += float(areas[0])
             else:
-                printv('Ígnoring hydrophobic exposed area from residue: '+res, args.verbosity)
+                if args.verbosity == 1:
+                    output.append('Ígnoring hydrophobic exposed area from residue: '+res)
         else:
             color = 'black'
         x.append(int(res[3:]))
@@ -1158,43 +1233,49 @@ def plot_analysis(pdb_name, surface_residues, entropies, z_entropies, tmdata, ar
     x = np.array(x)
     y = np.array(y)
     z = np.array(z)
-    print('\nProtomer surface exposure data:')
-    print('Total area exposed= '+str(round(total_area, 2))+' A^2')
-    print('Hydrophobic area exposed = '+str(round(hydrophobic_area, 2))+' A^2')
+    output.append('\nProtomer surface exposure data:')
+    output.append('Total area exposed= '+str(round(total_area, 2))+' A^2')
+    output.append('Hydrophobic area exposed = '+str(round(hydrophobic_area, 2))+' A^2')
 
     # Claculate total conserved area exposed
     conserved_area = 0
-    for (res, areas), (column, zscore) in zip(surface_residues.items(), z_entropies.items()):
-        if zscore > 1:
-            if int(res[3:]) not in tmdata[1]:
-                conserved_area += float(areas[0])
-            else:
-                printv('Ígnoring conserved exposed area from residue: '+res, args.verbosity)
-    print('Conserved area exposed= '+str(round(conserved_area, 2))+' A^2')
+    if not args.skip_conservation:
+        for (res, areas), (column, zscore) in zip(surface_residues.items(), z_entropies.items()):
+            if zscore > 1:
+                if int(res[3:]) not in tmdata[1]:
+                    conserved_area += float(areas[0])
+                else:
+                    if args.verbosity == 1:
+                        output.append('Ígnoring conserved exposed area from residue: '+res)
+        output.append('Conserved area exposed= '+str(round(conserved_area, 2))+' A^2')
 
     # Plot everything
 
     p, (ax1, ax2, ax3, ax4) = plt.subplots(4, sharex=True, figsize=(18, 9), gridspec_kw={'height_ratios': [1, 1, 0.5, 3.5]})
     plt.suptitle('Analysis of '+pdb_name+' Protomer', fontsize=20, fontweight='bold')
 
+
     # Plot Relative Entropy
     ax1.set_ylabel("Relative\nEntropy (bits)"+r"$^*$", fontsize=12)
     ax1.get_yaxis().set_label_coords(-0.02, 0.5)
-    ax1.bar(entropies.keys(), entropies.values(), color='grey', zorder=3)
+    if not args.skip_conservation:
+        ax1.bar(entropies.keys(), entropies.values(), color='grey', zorder=3)
     ax1.grid(True, linestyle=':', linewidth=0.7, zorder=0, color='k')
+
 
     # Plot Entropy Z-Scores
     ax2.set_ylabel("Z Scores", fontsize=12)
     ax2.get_yaxis().set_label_coords(-0.02, 0.5)
-    colors = []
-    for column, zscore in z_entropies.items():
-        if zscore > 0:
-            color = 'darkgreen'
-        else:
-            color = 'firebrick'
-        colors.append(color)
+    if not args.skip_conservation:
+        colors = []
+        for column, zscore in z_entropies.items():
+            if zscore > 0:
+                color = 'darkgreen'
+            else:
+                color = 'firebrick'
+            colors.append(color)
 
-    ax2.bar(z_entropies.keys(), z_entropies.values(), color=colors, zorder=3)
+        ax2.bar(z_entropies.keys(), z_entropies.values(), color=colors, zorder=3)
     ax2.grid(True, linestyle=':', linewidth=0.7, zorder=0, color='k')
 
     # Plot membrane residues
@@ -1234,12 +1315,13 @@ def plot_analysis(pdb_name, surface_residues, entropies, z_entropies, tmdata, ar
     plt.savefig(outfile, dpi=300, bbox_inches='tight')
     # Close figure
     plt.close()
-    print('\nCombining conservation and surface exposure data...')
-    print('Analysis plots for '+pdb_name+' generated : '+clrs['g']+os.path.basename(outfile)+clrs['n']+'\n')
-    return './'+os.path.basename(outfile), round(total_area, 2), round(hydrophobic_area, 2), round(conserved_area, 2), minx, maxx
+    output.append('\nCombining conservation and surface exposure data...')
+    output.append('Analysis plots for '+pdb_name+' generated : '+clrs['g']+os.path.basename(outfile)+clrs['n']+'\n')
+    return './'+os.path.basename(outfile), round(total_area, 2), round(hydrophobic_area, 2), round(conserved_area, 2), minx, maxx, '\n'.join(output)
 
 
 def plot_entropy_only(pdb_name, entropies, z_entropies, tmdata, args):
+
     # Reset Matplotlib parameters to default
     matplotlib.rcParams.update(matplotlib.rcParamsDefault)
     print('\nPlotting entropy scores per residue...')
@@ -1249,24 +1331,27 @@ def plot_entropy_only(pdb_name, entropies, z_entropies, tmdata, args):
     p, (ax1, ax2, ax3) = plt.subplots(3, sharex=True, figsize=(18, 9), gridspec_kw={'height_ratios': [1, 2, 1]})
     plt.suptitle('Analysis of '+pdb_name+' Protomer', fontsize=24, fontweight='bold')
 
+
     # Plot Relative Entropy
     ax1.set_ylabel("Relative\nEntropy (bits)"+r"$^*$", fontsize=12)
     ax1.get_yaxis().set_label_coords(-0.02, 0.5)
-    ax1.bar(entropies.keys(), entropies.values(), color='grey', zorder=3)
+    if not args.skip_conservation:
+        ax1.bar(entropies.keys(), entropies.values(), color='grey', zorder=3)
     ax1.grid(True, linestyle=':', linewidth=0.7, zorder=0, color='k')
 
     # Plot Entropy Z-Scores
     ax2.set_ylabel("Z Scores", fontsize=12)
     ax2.get_yaxis().set_label_coords(-0.02, 0.5)
-    colors = []
-    for column, zscore in z_entropies.items():
-        if zscore > 0:
-            color = 'darkgreen'
-        else:
-            color = 'firebrick'
-        colors.append(color)
+    if not args.skip_conservation:
+        colors = []
+        for column, zscore in z_entropies.items():
+            if zscore > 0:
+                color = 'darkgreen'
+            else:
+                color = 'firebrick'
+            colors.append(color)
 
-    ax2.bar(z_entropies.keys(), z_entropies.values(), color=colors, zorder=3)
+        ax2.bar(z_entropies.keys(), z_entropies.values(), color=colors, zorder=3)
     ax2.grid(True, linestyle=':', linewidth=0.7, zorder=0, color='k')
 
     # Plot membrane residues

@@ -10,6 +10,9 @@
     margin: 0 auto;
   }
 
+  span.runtime {
+  }
+
   span.small {
     font-size: 1.1vmax;
     padding: 2px;
@@ -119,6 +122,10 @@
 
     p{
       margin: 0 auto;
+    }
+
+    span.runtime {
+      font-size: 7px;
     }
 
     span.small {
@@ -285,15 +292,19 @@
           </div>
         </div>
         <div class=third>
-          <span class=small><p><b>Input Protomer</b><br>(with projected sequence relative entropy Z-scores)</p></span>
-          <img class=huge src="{{report['protomer_figure']}}" alt="Protomer Conservation Cartoon">
+          {% if report['runtime_arguments']['skip_conservation'] == False  %}
+            <span class=small><p><b>Input Protomer</b><br>(with projected sequence relative entropy Z-scores)</p></span>
+            <img class=huge src="{{report['protomer_figure']}}" alt="Protomer Conservation Cartoon">
+          {% else %}
+            <span class="header"><b>Conservation analysis skipped.</b></span>
+          {% endif %}
         </div>
       {% endif %}
       <div class=smallbox style="width: 25%; background: #f7f4ba" >
         <span><b>Runtime Arguments:</b></span>
         <br>
         {% for key, value in report['runtime_arguments'].items() %}
-        <span>{{key}}: {{value}}</span>
+        <span class=runtime>{{key}}: {{value}}</span>
         <br>
         {% endfor %}
       </div>

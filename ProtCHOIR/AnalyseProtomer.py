@@ -56,14 +56,6 @@ This project is licensed under Creative Commons license (CC-BY-4.0)
 ###############################################################################
 def parse_vivace_model(sequence, modelfile):
     print(clrs['g']+"Vivace model! New homologue search not necessary!\n"+clrs['n'])
-    # # Read Chain correspondences
-    # chain_correspondences_file = os.path.join(pdb_homo_archive, 'stats', 'chain_correspondences.pickle')
-    # try:
-    #     with open(chain_correspondences_file, 'rb') as p:
-    #         chain_correspondences = pickle.load(p)
-    # except FileNotFoundError:
-    #     print(clrs['r']+'Chain correspondence file could not be found! Please regenerate the database.'+clrs['n'])
-
     pattern = 'REMARK   6 TEMPLATE:'
     templates_ids = {}
     with open(modelfile, 'r') as f:
@@ -73,29 +65,14 @@ def parse_vivace_model(sequence, modelfile):
                 vivace_pid = line.split()[-1].replace('%', '')
                 if len(template) == 5:
                     template_pdbcode = template[:4].lower()
-                    # print('Template PDB: '+template_pdbcode)
-                    # print('Original pdb chain:'+template[4])
-                    # corresponding_chains = chain_correspondences['template_pdbcode']
-                    # corresponding_chains_inverted = {v: k for k, v in corresponding_chains.items()}
                     vivace_chain = template[4]
-                    # print('New CHOIR chain:'+template_chain)
                 elif len(template) == 7:
                     if template.startswith('d'):
                         template_pdbcode = template[1:5].lower()
-                        # print('Template PDB: '+template_pdbcode)
-                        # print('Original pdb chain:'+template[5])
-                        # corresponding_chains = chain_correspondences[template_pdbcode]
-                        # corresponding_chains_inverted = {v: k for k, v in corresponding_chains.items()}
                         vivace_chain = template[5]
-                        # print('New CHOIR chain: '+template_chain)
                     else:
                         template_pdbcode = template[:4].lower()
-                        # print('Template PDB: '+template_pdbcode)
-                        # print('Original pdb chain:'+template[4])
-                        # corresponding_chains = chain_correspondences[template_pdbcode]
-                        # corresponding_chains_inverted = {v: k for k, v in corresponding_chains.items()}
                         vivace_chain = template[4]
-                        # print('New CHOIR chain: '+template_chain)
                 template_chain, pid = pctools.find_most_similar_chain(sequence, template_pdbcode)
                 if template_chain is None:
                     print(clrs['r']+'Hit '+str(template_pdbcode)+' not found in oligomeric database. Disregarding it.'+clrs['n']+'\n')
@@ -150,7 +127,7 @@ def blast_protomer(fasta_file, database, nhits, nint, nthreads, verbosity):
                 if hits.tag == 'Iteration_hits':
                     for hit in hits:
                         for hsps in hit:
-                            if database == homoblast:
+                            if database == homoblast or database == monoblast or database == heteroblast:
                                 if hsps.tag == 'Hit_def':
                                     code = ':'.join(hsps.text.split('|')[-2:])
                             elif database == uniref50:
@@ -557,6 +534,7 @@ def run_tmhmm2(fasta, args):
     print('Done running '+clrs['b']+'TMHMM'+clrs['n']+'. Data file written to '+clrs['g']+os.path.basename(tmhmm2_out)+clrs['n'])
     return tmhmm2_out
 
+
 def parse_tmhmm_output(tmhmm_out, residue_index_mapping, args):
     tmspans = []
     for line in open(tmhmm_out, 'r'):
@@ -574,6 +552,87 @@ def parse_tmhmm_output(tmhmm_out, residue_index_mapping, args):
     return tmspans, tmresidues
 
 
+def search_homologues(fasta_file, report, args):
+    # Search for homologous proteins in all three CHOIR databases
+    best_score = {}
+
+    # Search homo-oligomers database
+    hits = blast_protomer(fasta_file, homoblast, args.max_candidates, 1, args.psiblast_threads, args.verbosity)
+    if hits:
+        best_score['HOMO-OLIGOMERIC'] = list(hits.items())[0][1][0]
+        for hit in hits:
+            hit_code, hit_chain = hit.split(':')
+            print('Hit '+clrs['p']+hit_code.upper()+clrs['n']+', Chain: '+clrs['y']+hit_chain+clrs['n']+', Score: '+clrs['c']+str(hits[hit][0])+clrs['n']+', %id: '+clrs['c']+str(hits[hit][1])+clrs['n']+', Coverage: '+clrs['c']+str(hits[hit][2])+clrs['n'])
+    else:
+        print('No hit found in monomers database')
+        best_score['HOMO-OLIGOMERIC'] = 0
+
+    # Search monomers database
+    mono_hits = blast_protomer(fasta_file, monoblast, 3, 1, args.psiblast_threads, args.verbosity)
+    if mono_hits:
+        best_score['MONOMERIC'] = list(mono_hits.items())[0][1][0]
+        for hit in mono_hits:
+            hit_code, hit_chain = hit.split(':')
+            print('Hit '+clrs['p']+hit_code.upper()+clrs['n']+', Chain: '+clrs['y']+hit_chain+clrs['n']+', Score: '+clrs['c']+str(mono_hits[hit][0])+clrs['n']+', %id: '+clrs['c']+str(mono_hits[hit][1])+clrs['n']+', Coverage: '+clrs['c']+str(mono_hits[hit][2])+clrs['n'])
+    else:
+        print('No hit found in monomers database')
+        best_score['MONOMERIC'] = 0
+
+    # Search hetero-oligomers database
+    hetero_hits = blast_protomer(fasta_file, heteroblast, 3, 1, args.psiblast_threads, args.verbosity)
+    if hetero_hits:
+        best_score['HETERO-OLIGOMERIC'] = list(hetero_hits.items())[0][1][0]
+        for hit in hetero_hits:
+            hit_code, hit_chain = hit.split(':')
+            print('Hit '+clrs['p']+hit_code.upper()+clrs['n']+', Chain: '+clrs['y']+hit_chain+clrs['n']+', Score: '+clrs['c']+str(hetero_hits[hit][0])+clrs['n']+', %id: '+clrs['c']+str(hetero_hits[hit][1])+clrs['n']+', Coverage: '+clrs['c']+str(hetero_hits[hit][2])+clrs['n'])
+    else:
+        print('No hit found in Hetero-oligomers database')
+        best_score['HETERO-OLIGOMERIC'] = 0
+
+    # Define highest scoring state
+    highest_scoring_state = max(best_score, key=best_score.get)
+    report['highest_scoring_state'] = highest_scoring_state
+
+    # Get H3O-Score
+    if max(best_score.values()) > 0:
+        report['homo_oligomeric_over_other_score'] = round(best_score['HOMO-OLIGOMERIC']/max(best_score.values()), 2)
+
+    # Report and proceed
+    if not hits:
+        print('PSI-BLAST found NO hits in Homo-Oligomeric database')
+        print('The H3O-Score is '+clrs['c']+str(report['homo_oligomeric_over_other_score'])+clrs['n']+'.')
+        if hetero_hits or mono_hits:
+            print('The input protein is likely '+clrs['y']+highest_scoring_state+clrs['n']+'.')
+
+        return None, report
+    elif hits and (mono_hits or hetero_hits):
+        if highest_scoring_state == 'HOMO-OLIGOMERIC':
+            print('\nHighest scoring hit forms Homo-Oligomeric interfaces.')
+            print('The H3O-Score is '+clrs['c']+str(report['homo_oligomeric_over_other_score'])+clrs['n']+'.\n')
+        else:
+            print('\nHighest scoring hit does not form Homo-Oligomeric interfaces. Instead, the protein is likely '+clrs['y']+highest_scoring_state+clrs['n']+'.')
+            tolerated_score = (100-args.tolerance) * max(best_score.values())/100
+            if best_score['HOMO-OLIGOMERIC'] >= tolerated_score:
+                print('Nevertheless, ProtCHOIR is still going to attempt building models, since the best Homo-Oligomeric score is within the tolerance range ('+clrs['c']+str(args.tolerance)+'%'+clrs['n']+' of the best hit\'s score).')
+                print('The H3O-Score is '+clrs['c']+str(report['homo_oligomeric_over_other_score'])+clrs['n']+'.\n')
+                for hit in hits:
+                    hit_code, hit_chain = hit.split(':')
+                    print('\nHit '+clrs['p']+hit_code.upper()+clrs['n']+', Chain: '+clrs['y']+hit_chain+clrs['n']+', Score: '+clrs['c']+str(hits[hit][0])+clrs['n']+', %id: '+clrs['c']+str(hits[hit][1])+clrs['n']+', Coverage: '+clrs['c']+str(hits[hit][2])+clrs['n'])
+
+            else:
+                print('ProtCHOIR is NOT going to attempt building models, since the best Homo-Oligomeric score is  NOT within the tolerance range ('+clrs['c']+str(args.tolerance)+'%'+clrs['n']+' of the best hit\'s score).')
+                print('The H3O-Score is '+clrs['c']+str(report['homo_oligomeric_over_other_score'])+clrs['n']+'.\n')
+                return None, report
+    else:
+        print('Highest scoring hit forms Homo-Oligomeric interfaces.\n')
+        print('The H3O-Score is '+clrs['c']+str(report['homo_oligomeric_over_other_score'])+clrs['n']+'.')
+        for hit in hits:
+            hit_code, hit_chain = hit.split(':')
+            print('\nHit '+clrs['p']+hit_code.upper()+clrs['n']+', Chain: '+clrs['y']+hit_chain+clrs['n']+', Score: '+clrs['c']+str(hits[hit][0])+clrs['n']+', %id: '+clrs['c']+str(hits[hit][1])+clrs['n']+', Coverage: '+clrs['c']+str(hits[hit][2])+clrs['n'])
+
+    return hits, report
+
+
 # Main Function
 ###############################################################################
 def analyze_protomer(input_file, report, args):
@@ -587,10 +646,13 @@ def analyze_protomer(input_file, report, args):
     ignorevivace = args.ignorevivace
     max_candidates = args.max_candidates
     largest_oligo_complexes = collections.OrderedDict()
+    report['sequence_mode'] = str(args.sequence_mode)
 
+    # Default Mode ############################################################################################################################
     if args.sequence_mode is False:
         pctools.print_section(1, 'PROTOMER ANALYSIS')
-        pctools.print_subsection('1[a]', 'Protomer structure check')
+        # Subsection 1[a] #######################################################################
+        pctools.print_subsection('1[a]', 'Loading input files')
         filename = os.path.basename(input_file)
         report['input_filename'] = os.path.basename(filename)
         print('Will now begin analysis of '+clrs['p']+filename+clrs['n']+'\n')
@@ -617,6 +679,30 @@ def analyze_protomer(input_file, report, args):
             input_file = pctools.split_chains(pdb_name, structure, workdir)
             pdb_name, structure, nchains = pctools.parse_any_structure(input_file)
 
+        # Extract sequence of (first) chain in structure
+        nchains, seqs, chain_ids = pctools.extract_seqs(structure, 0)
+        sequence = seqs[0][1]
+        report['protomer_residues'] = str(len(sequence))
+        fasta_file = write_fasta(sequence)
+
+        # Subsection 1[b] #######################################################################
+        pctools.print_subsection('1[b]', 'Oligomeric homologues search')
+        # If not a Vivace model, search for homologous proteins in all three CHOIR databases
+        if vivacemodel is False:
+            hits, report = search_homologues(fasta_file, report, args)
+            if not hits:
+                return None
+        else:
+            hits = parse_vivace_model(sequence, input_file)
+            report['highest_scoring_state'] = 'NA'
+            report['homo_oligomeric_over_other_score'] = 'NA'
+
+            if not hits:
+                print('No Vivace-determined hits were found in the homo-oligomeric database. Try using --ignore-vivace.\n')
+                return None
+
+        # Subsection 1[c] #######################################################################
+        pctools.print_subsection('1[c]', 'Protomer structure check')
         # Run PISA for monomer and get surface residues
         print('\nRunning '+clrs['b']+'PISA'+clrs['n']+' for '+clrs['p']+pdb_name+clrs['n']+'...')
         output, pisa_error, monomer_data = pctools.run_pisa(input_file, '', args.verbosity, gen_monomer_data=True, gen_oligomer_data=False)
@@ -624,46 +710,32 @@ def analyze_protomer(input_file, report, args):
             print(output)
         protomer_surface_residues = pctools.get_areas(monomer_data)
         residue_index_mapping = pctools.map_residue_index(protomer_surface_residues)
+        print('Done running '+clrs['b']+'PISA'+clrs['n']+'.')
 
-
-        # Extract sequence of (first) chain in structure
-        nchains, seqs, chain_ids = pctools.extract_seqs(structure, 0)
-        sequence = seqs[0][1]
-        report['protomer_residues'] = str(len(sequence))
-        fasta_file = write_fasta(sequence)
 
         # Get likely transmembrane residues
         tmhmm_out = run_tmhmm2(fasta_file, args)
         tmdata = parse_tmhmm_output(tmhmm_out, residue_index_mapping, args)
         report['tmspans'] = str(len(tmdata[0]))
 
-
-        # If not a Vivace model, Use PSI-BLAST to search homodb and return hits
-        pctools.print_subsection('1[b]', 'Oligomeric homologues search')
-        if vivacemodel is False:
-            hits = blast_protomer(fasta_file, homoblast, max_candidates, 1, 8, args.verbosity)
-            if not hits:
-                print('PSI-BLAST found NO hits in Homo-Oligomeric database')
-                return None
-            else:
-                for hit in hits:
-                    hit_code, hit_chain = hit.split(':')
-                    print('\nHit '+clrs['p']+hit_code.upper()+clrs['n']+', Chain: '+clrs['y']+hit_chain+clrs['n']+', Score: '+clrs['c']+str(hits[hit][0])+clrs['n']+', %id: '+clrs['c']+str(hits[hit][1])+clrs['n']+', Coverage: '+clrs['c']+str(hits[hit][2])+clrs['n'])
-        else:
-            hits = parse_vivace_model(sequence, input_file)
-            if not hits:
-                print('No Vivace-determined hits were found in the homo-oligomeric database. Try using --ignore-vivace.\n')
-                return None
-
         # Run Molprobity for monomer
-        protomer_molprobity = pctools.run_molprobity(input_file, args)
+        protomer_molprobity, molprobity_output = pctools.run_molprobity(input_file, args)
+        print(molprobity_output)
+        print(clrs['y']+'MOLPROBITY ASSESSMENT'+clrs['n'])
+        print('Rama. Fav.\t'+str(protomer_molprobity['rama_fav']))
+        print('Rama. Out.\t'+str(protomer_molprobity['rama_out']))
+        print('Rot. Out.\t'+str(protomer_molprobity['rot_out']))
+        print('CBeta Dev.\t'+str(protomer_molprobity['cb_dev']))
+        print('Clashscore\t'+str(protomer_molprobity['clashscore']))
+        print('Molprob. Score\t'+str(protomer_molprobity['molprobity_score']))
         report['protomer_molprobity'] = protomer_molprobity['molprobity_score']
         report['protomer_clashscore'] = protomer_molprobity['clashscore']
 
+        # Subsection 1[d] #######################################################################
         if not args.skip_conservation:
-            pctools.print_subsection('1[c]', 'Sequence conservation analysis')
+            pctools.print_subsection('1[d]', 'Sequence conservation analysis')
             # Use PSI-BLAST to search UniRef50 and return hits
-            uni50hits = blast_protomer(fasta_file, uniref50, 50, 1, 8, args.verbosity)
+            uni50hits = blast_protomer(fasta_file, uniref50, 50, 1, args.psiblast_threads, args.verbosity)
             if not uni50hits:
                 print('PSI-BLAST found NO hits in Uniref50 database')
             if uni50hits:
@@ -673,15 +745,20 @@ def analyze_protomer(input_file, report, args):
                 msa_dict_trim = parse_msa(trimmed_msa)
                 entropies = relative_entropy(msa_dict_trim, protomer_surface_residues)
                 z_entropies = calc_z_scores(entropies)
-                report['protomer_plot'], report['protomer_exposed_area'], report['protomer_hydrophobic_area'], report['protomer_conserved_area'], minx, maxx = pctools.plot_analysis(pdb_name, protomer_surface_residues, entropies, z_entropies, tmdata, args)
+                report['protomer_plot'], report['protomer_exposed_area'], report['protomer_hydrophobic_area'], report['protomer_conserved_area'], minx, maxx, analysis_output = pctools.plot_analysis(pdb_name, protomer_surface_residues, entropies, z_entropies, tmdata, args)
+                print(analysis_output)
                 monomer_conservation = map_conservation(structure, z_entropies)
                 report['protomer_figure'] = pctools.pymol_screenshot_mono(monomer_conservation, z_entropies, args)
         else:
-            print(clrs['y']+"Skipping section 1[c] - Sequence conservation analysis"+clrs['n']+"\n")
+            print(clrs['y']+"Skipping section 1[d] - Sequence conservation analysis"+clrs['n']+"\n")
+            report['protomer_plot'], report['protomer_exposed_area'], report['protomer_hydrophobic_area'], report['protomer_conserved_area'], minx, maxx, analysis_output = pctools.plot_analysis(pdb_name, protomer_surface_residues, None, None, tmdata, args)
 
+
+    # Sequence Mode ###########################################################################################################################
     elif args.sequence_mode is True:
         pctools.print_section(1, 'PROTOMER ANALYSIS - SEQUENCE MODE')
-        print(clrs['y']+"Skipping section 1[a] - Protomer structure check"+clrs['n']+"\n")
+        # Subsection 1[a] #######################################################################
+        pctools.print_subsection('1[a]', 'Loading input files')
         if input_file.lower().endswith('.fasta'):
             fasta_file = input_file
             pdb_name = os.path.basename(fasta_file).split("_CHOIR_MonomerSequence.fasta")[0].replace('.', '_')
@@ -712,16 +789,23 @@ def analyze_protomer(input_file, report, args):
         tmhmm_out = run_tmhmm2(fasta_file, args)
         tmdata = parse_tmhmm_output(tmhmm_out, residue_index_mapping, args)
         report['tmspans'] = str(len(tmdata[0]))
+
+        # Subsection 1[b] #######################################################################
         pctools.print_subsection('1[b]', 'Oligomeric homologues search')
-        hits = blast_protomer(fasta_file, homoblast, max_candidates, 1, 8, args.verbosity)
+        # Search for homologous proteins in all three CHOIR databases
+        hits, report = search_homologues(fasta_file, report, args)
         if not hits:
-            print('PSI-BLAST found NO hits in Homo-Oligomeric database')
             return None
 
+        # Subsection 1[c] #######################################################################
+        # Inform there will be no structural analysis
+        print(clrs['y']+"Skipping section 1[c] - Protomer structure check"+clrs['n']+"\n")
+
+        # Subsection 1[d] #######################################################################
         if not args.skip_conservation:
-            pctools.print_subsection('1[c]', 'Sequence conservation analysis')
+            pctools.print_subsection('1[d]', 'Sequence conservation analysis')
             # Use PSI-BLAST to search UniRef50 and return hits
-            uni50hits = blast_protomer(fasta_file, uniref50, 50, 1, 8, args.verbosity)
+            uni50hits = blast_protomer(fasta_file, uniref50, 50, 1, args.psiblast_threads, args.verbosity)
             if not uni50hits:
                 print('PSI-BLAST found NO hits in Uniref50 database')
             if uni50hits:
@@ -733,38 +817,60 @@ def analyze_protomer(input_file, report, args):
                 z_entropies = calc_z_scores(entropies)
                 report['protomer_plot'] = pctools.plot_entropy_only(pdb_name, entropies, z_entropies, tmdata, args)
         else:
-            print(clrs['y']+"Skipping section 1[c] - Sequence conservation analysis"+clrs['n']+"\n")
+            print(clrs['y']+"Skipping section 1[d] - Sequence conservation analysis"+clrs['n']+"\n")
+            report['protomer_plot'] = pctools.plot_entropy_only(pdb_name, None, None, tmdata, args)
 
 
 
-    # Analyse hits
+    # Analyse hits ############################################################################################################################
     report['hits'] = {}
     if hits:
-        pctools.print_subsection('1[d]', 'Oligomeric homologues analysis')
-        p = Pool()
-        interfaces_dict = {}
-        for hitchain, largest_cluster, interfaces_list, cluster_dict, total_chains, initial_homo_chains, hetero_complex, output in p.map_async(analyse_hits, hits).get():
-        #for hit in hits:
-        #    hitchain, largest_cluster, interfaces_list, cluster_dict, total_chains, initial_homo_chains, hetero_complex, output = analyse_hits(hit)
-            report['hits'][hitchain] = {}
-            report['hits'][hitchain]['hetero_complex'] = hetero_complex
-            report['hits'][hitchain]['total_chains'] = total_chains
-            report['hits'][hitchain]['initial_homo_chains'] = initial_homo_chains
-            print(output)
+        # Subsection 1[e] #######################################################################
+        pctools.print_subsection('1[e]', 'Oligomeric homologues analysis')
+        if args.multiprocess is True:
+            p = Pool()
+            interfaces_dict = {}
+            for hitchain, largest_cluster, interfaces_list, cluster_dict, total_chains, initial_homo_chains, hetero_complex, output in p.map_async(analyse_hits, hits).get():
+                report['hits'][hitchain] = {}
+                report['hits'][hitchain]['hetero_complex'] = hetero_complex
+                report['hits'][hitchain]['total_chains'] = total_chains
+                report['hits'][hitchain]['initial_homo_chains'] = initial_homo_chains
+                print(output)
 
-            if largest_cluster is None:
-                report['hits'][hitchain]['qscore'] = 'N/A'
-                report['hits'][hitchain]['final_homo_chains'] = '0'
+                if largest_cluster is None:
+                    report['hits'][hitchain]['qscore'] = 'N/A'
+                    report['hits'][hitchain]['final_homo_chains'] = '0'
+                    print('-------------------------------------------------------------------')
+                    continue
+                largest_oligo_complexes[hitchain] = largest_cluster
+                report['hits'][hitchain]['final_homo_chains'] = str(len(largest_cluster))
+                if args.plot_topologies is True:
+                    plot_topology(hitchain, interfaces_list, cluster_dict)
+                interfaces_dict[hitchain] = interfaces_list
                 print('-------------------------------------------------------------------')
-                continue
-            largest_oligo_complexes[hitchain] = largest_cluster
-            report['hits'][hitchain]['final_homo_chains'] = str(len(largest_cluster))
-            if args.plot_topologies is True:
-                plot_topology(hitchain, interfaces_list, cluster_dict)
-            interfaces_dict[hitchain] = interfaces_list
-            print('-------------------------------------------------------------------')
-        p.close()
-        p.join()
+            p.close()
+            p.join()
+        else:
+            interfaces_dict = {}
+            for hit in hits:
+                hitchain, largest_cluster, interfaces_list, cluster_dict, total_chains, initial_homo_chains, hetero_complex, output = analyse_hits(hit)
+                report['hits'][hitchain] = {}
+                report['hits'][hitchain]['hetero_complex'] = hetero_complex
+                report['hits'][hitchain]['total_chains'] = total_chains
+                report['hits'][hitchain]['initial_homo_chains'] = initial_homo_chains
+                print(output)
+
+                if largest_cluster is None:
+                    report['hits'][hitchain]['qscore'] = 'N/A'
+                    report['hits'][hitchain]['final_homo_chains'] = '0'
+                    print('-------------------------------------------------------------------')
+                    continue
+                largest_oligo_complexes[hitchain] = largest_cluster
+                report['hits'][hitchain]['final_homo_chains'] = str(len(largest_cluster))
+                if args.plot_topologies is True:
+                    plot_topology(hitchain, interfaces_list, cluster_dict)
+                interfaces_dict[hitchain] = interfaces_list
+                print('-------------------------------------------------------------------')
 
     if not largest_oligo_complexes:
         print('**ProtCHOIR'+clrs['r']+' failed '+clrs['n']+'to select good oligomeric templates.\n')
