@@ -100,7 +100,15 @@ Running:
 
 :code:`ProtCHOIR -h`
 
-Will expose all available runtime options:
+Will expose all available runtime options.
+
+Methodology Flowchart
+*********************
+
+The image below summarizes the approach used by ProtCHOIR to build the homo-oligomeric proteins.
+
+.. image:: https://raw.githubusercontent.com/monteirotorres/ProtCHOIR/master/ProtCHOIR/Contents/ProtCHOIRScheme.svg?sanitize=true
+
 
 
 Authors

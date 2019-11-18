@@ -127,141 +127,146 @@ global pdb_homo_archive
 
 # Parse command line arguments
 ###############################################################################
-parser = argparse.ArgumentParser()
+def argument_parsing():
+    parser = argparse.ArgumentParser()
 
-parser.add_argument('-f', '--file',
-                    dest='input_file',
-                    type=str,
-                    metavar='',
-                    help='File containing the paths of pdbs to be oligomerized')
+    parser.add_argument('-f', '--file',
+                        dest='input_file',
+                        type=str,
+                        metavar='',
+                        help='File containing the paths of pdbs to be oligomerized')
 
-parser.add_argument('-c, --max-candidates',
-                    dest='max_candidates',
-                    type=int, default=5,
-                    metavar='',
-                    help='Maximum number of candidate PDB structures to consider')
+    parser.add_argument('-c, --max-candidates',
+                        dest='max_candidates',
+                        type=int, default=5,
+                        metavar='',
+                        help='Maximum number of candidate PDB structures to consider')
 
-parser.add_argument('-m', '--models',
-                    dest='models',
-                    type=int, default=1,
-                    metavar='',
-                    help='Number of Modeller-generated models')
+    parser.add_argument('-m', '--models',
+                        dest='models',
+                        type=int, default=1,
+                        metavar='',
+                        help='Number of Modeller-generated models')
 
-parser.add_argument('-q', '--qscore-cutoff',
-                    dest='qscore_cutoff',
-                    type=float, default=0.4,
-                    metavar='',
-                    help='Determines the cut-off for average GESAMT Q-score When comparing the protomer with each chain of template oligomers.  Ignored when using the ignore-protomer option.')
+    parser.add_argument('-q', '--qscore-cutoff',
+                        dest='qscore_cutoff',
+                        type=float, default=0.4,
+                        metavar='',
+                        help='Determines the cut-off for average GESAMT Q-score When comparing the protomer with each chain of template oligomers.  Ignored when using the ignore-protomer option.')
 
-parser.add_argument('-t', '--tolerance',
-                    dest='tolerance',
-                    type=float, default=15,
-                    metavar='',
-                    help='Determines the maximum allowed percent difference between PSI-BLAST scores in order to attempt modelling')
-
-
-parser.add_argument('-r', '--refine-level',
-                    dest='refine_level',
-                    type=int, default=0,
-                    metavar='',
-                    help='[0] Refine using very-fast VTFM.[1] Refine using fast VTFM.[2] Refine using normal VTFM.[3] Refine using slow VTFM.[4] Refine using slow VTFM and slow MD protocols.')
+    parser.add_argument('-t', '--tolerance',
+                        dest='tolerance',
+                        type=float, default=15,
+                        metavar='',
+                        help='Determines the maximum allowed percent difference between PSI-BLAST scores in order to attempt modelling')
 
 
-parser.add_argument('-a', '--assessment',
-                    dest='assessment',
-                    metavar='',
-                    type=str, default='I',
-                    help='Define oligomer assessment methods. Input a string containing any combination of the following capital letters: [G]Gesamt, [M]Molprobity, [I]Interfaces (not compatible with sequence mode)')
+    parser.add_argument('-r', '--refine-level',
+                        dest='refine_level',
+                        type=int, default=0,
+                        metavar='',
+                        help='[0] Refine using very-fast VTFM.[1] Refine using fast VTFM.[2] Refine using normal VTFM.[3] Refine using slow VTFM.[4] Refine using slow VTFM and slow MD protocols.')
 
-parser.add_argument('--sequence-mode',
-                    dest='sequence_mode',
-                    action='store_true',
-                    default=False,
-                    help='Instructs ProtCHOIR NOT to consider the input protomer (sequence mode)')
 
-parser.add_argument('--ignore-vivace',
-                    dest='ignorevivace',
-                    action='store_true',
-                    default=False,
-                    help='Instructs ProtCHOIR NOT to consider Vivace-selected templates')
+    parser.add_argument('-a', '--assessment',
+                        dest='assessment',
+                        metavar='',
+                        type=str, default='I',
+                        help='Define oligomer assessment methods. Input a string containing any combination of the following capital letters: [G]Gesamt, [M]Molprobity, [I]Interfaces (not compatible with sequence mode) or [N]None')
 
-parser.add_argument('--plot-topologies',
-                    dest='plot_topologies',
-                    action='store_true',
-                    default=False,
-                    help='Plot oligmerization topologies of all candidate oligomeric templates')
+    parser.add_argument('--sequence-mode',
+                        dest='sequence_mode',
+                        action='store_true',
+                        default=False,
+                        help='Instructs ProtCHOIR NOT to consider the input protomer (sequence mode)')
 
-parser.add_argument('--psiblast-threads',
-                    dest='psiblast_threads',
-                    type=int,
-                    metavar='',
-                    help='Number of threads to use for PSI-BLAST, defaults to the number of processors')
+    parser.add_argument('--ignore-vivace',
+                        dest='ignorevivace',
+                        action='store_true',
+                        default=False,
+                        help='Instructs ProtCHOIR NOT to consider Vivace-selected templates')
 
-parser.add_argument('--modeller-threads',
-                    dest='modeller_threads',
-                    type=int,
-                    metavar='',
-                    help='Number of threads to use for MODELLER, defaults to the smallest vaule between the number of processors or number of models')
+    parser.add_argument('--plot-topologies',
+                        dest='plot_topologies',
+                        action='store_true',
+                        default=False,
+                        help='Plot oligmerization topologies of all candidate oligomeric templates')
 
-parser.add_argument('--multiprocess',
-                    dest='multiprocess',
-                    action='store_true',
-                    default=False,
-                    help='Defines whether python multiprocessing should be enabled for compatible lenghty tasks')
+    parser.add_argument('--psiblast-threads',
+                        dest='psiblast_threads',
+                        type=int,
+                        metavar='',
+                        help='Number of threads to use for PSI-BLAST, defaults to the number of processors')
 
-parser.add_argument('--single-core',
-                    dest='force_single_core',
-                    action='store_true',
-                    default=False,
-                    help='Forces all individual tasks and programs to run in a single core. Disables multiprocessing.')
+    parser.add_argument('--modeller-threads',
+                        dest='modeller_threads',
+                        type=int,
+                        metavar='',
+                        help='Number of threads to use for MODELLER, defaults to the smallest vaule between the number of processors or number of models')
 
-parser.add_argument('--skip-conservation',
-                    dest='skip_conservation',
-                    action='store_true',
-                    default=False,
-                    help='Skip PSI-Blast against UniRef50 and entropy calculations')
+    parser.add_argument('--multiprocess',
+                        dest='multiprocess',
+                        action='store_true',
+                        default=False,
+                        help='Defines whether python multiprocessing should be enabled for compatible lenghty tasks')
 
-parser.add_argument('--symmetry',
-                    dest='symmetry',
-                    action='store_true',
-                    default=False,
-                    help='Run Modeller with symmetry constraints for all chains.WARNING: Enforcing symmetry might take a very long time!')
+    parser.add_argument('--single-core',
+                        dest='force_single_core',
+                        action='store_true',
+                        default=False,
+                        help='Forces all individual tasks and programs to run in a single core. Disables multiprocessing.')
 
-parser.add_argument('--repeat-optimization',
-                    dest='repeat_opt',
-                    type=int, default=0,
-                    help='Defines how many times the Modeller optimization protocol should be executed')
+    parser.add_argument('--skip-conservation',
+                        dest='skip_conservation',
+                        action='store_true',
+                        default=False,
+                        help='Skip PSI-Blast against UniRef50 and entropy calculations')
 
-parser.add_argument('--generate-report',
-                    dest='generate_report',
-                    action='store_true',
-                    default=False,
-                    help='Creates a final HTML report for each generated model (forces -a MIG and --plot-topologies)')
+    parser.add_argument('--symmetry',
+                        dest='symmetry',
+                        action='store_true',
+                        default=False,
+                        help='Run Modeller with symmetry constraints for all chains.WARNING: Enforcing symmetry might take a very long time!')
 
-parser.add_argument('-z', '--zip-output',
-                    dest='zip_output',
-                    type=int, default=0,
-                    help='Defines the compression level. [0] No compression, [1] partial compression, [2] full compression')
+    parser.add_argument('--repeat-optimization',
+                        dest='repeat_opt',
+                        type=int, default=0,
+                        help='Defines how many times the Modeller optimization protocol should be executed')
 
-parser.add_argument('-u', '--update-databases',
-                    dest='update',
-                    action='store_true',
-                    default=False,
-                    help='Updates databases')
+    parser.add_argument('--generate-report',
+                        dest='generate_report',
+                        action='store_true',
+                        default=False,
+                        help='Creates a final HTML report for each generated model (forces -a MIG and --plot-topologies)')
 
-parser.add_argument('-v', '--verbose',
-                    dest='verbosity',
-                    action='count',
-                    default=0,
-                    help='Controls verbosity')
+    parser.add_argument('-z', '--zip-output',
+                        dest='zip_output',
+                        type=int, default=0,
+                        help='Defines the compression level. [0] No compression, [1] partial compression, [2] full compression')
 
-parser.add_argument('--conf',
-                    dest='config_file',
-                    type=str,
-                    metavar='',
-                    help='Configuration file containing external executable paths')
+    parser.add_argument('-u', '--update-databases',
+                        dest='update',
+                        action='store_true',
+                        default=False,
+                        help='Updates databases')
 
-initial_args = parser.parse_args()
+    parser.add_argument('-v', '--verbose',
+                        dest='verbosity',
+                        action='count',
+                        default=0,
+                        help='Controls verbosity')
+
+    parser.add_argument('--conf',
+                        dest='config_file',
+                        type=str,
+                        metavar='',
+                        help='Configuration file containing external executable paths')
+
+    initial_args = parser.parse_args()
+
+    return initial_args
+
+initial_args = argument_parsing()
 
 
 # Define Global Variables

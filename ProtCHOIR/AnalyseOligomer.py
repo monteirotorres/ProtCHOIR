@@ -274,8 +274,9 @@ def analyse_model(oligomer):
     output.append(pctools.subsection('3', model_oligomer_name))
     output.append('Analysing oligomer file: '+clrs['y']+oligomer+clrs['n']+'\n')
     model_report['model_oligomer_name'] = model_oligomer_name
-    model_report['model_figures'], pymol_output = pctools.pymol_screenshot(oligomer, g_args, putty=True)
-    output.append(pymol_output)
+    if g_args.generate_report is True:
+        model_report['model_figures'], pymol_output = pctools.pymol_screenshot(oligomer, g_args, putty=True)
+        output.append(pymol_output)
 
     if 'I' in g_args.assessment:
         output.append(pctools.subsection('3'+'[I]', 'Interfaces Comparison: '+model_oligomer_name))
@@ -316,7 +317,7 @@ def analyse_model(oligomer):
                 model_report['surface_score'] = 0
             output.append('Final surface score: '+str(model_report['surface_score']))
         else:
-            model_report['surface_score'] = 'N/A'
+            model_report['surface_score'] = 'NA'
 
         model_oligomer = oligomer.split('_CHOIR_CorrectedChains')[0]
         xml_out = model_oligomer+'_CHOIR_PisaInterfaces.xml'
@@ -420,6 +421,14 @@ def analyse_model(oligomer):
 
         model_report['interfaces_score'] = round(summed_score/(10*len(interfaces_comparison)), 2)
         output.append('Final interfaces score: '+str(model_report['interfaces_score']))
+    else:
+        model_report['surface_score'] = 'NA'
+        model_report['interfaces_score'] = 'NA'
+        model_report['comparison_plots'] = 'NA'
+        model_report['assemblied_protomer_plot'] = 'NA'
+        model_report['assemblied_protomer_exposed_area'] = 'NA'
+        model_report['assemblied_protomer_hydrophobic_area'] = 'NA'
+        model_report['assemblied_protomer_conserved_area'] = 'NA'
 
     if 'G' in g_args.assessment:
         output.append(pctools.subsection('3'+'[G]', 'GESAMT Comparison'))
@@ -427,6 +436,10 @@ def analyse_model(oligomer):
         output.append(gesamt_output)
         model_report['gesamt_qscore'] = str(qscore)
         model_report['gesamt_rmsd'] = str(rmsd)
+    else:
+        model_report['gesamt_qscore'] = 'NA'
+        model_report['gesamt_rmsd'] = 'NA'
+
 
     if 'M' in g_args.assessment:
         output.append(pctools.subsection('3'+'[M]', 'Molprobity Comparison'))
@@ -452,13 +465,25 @@ def analyse_model(oligomer):
         else:
             model_report['quality_score'] = 10
         output.append('Final quality score: '+str(model_report['quality_score']))
-
-
-    if g_args.sequence_mode is False and g_args.skip_conservation is False:
-        model_report['protchoir_score'] = round(sum([model_report['interfaces_score'], model_report['surface_score'], model_report['quality_score']])/3, 2)
     else:
-        model_report['protchoir_score'] = round(sum([model_report['interfaces_score'], model_report['quality_score']])/2, 2)
-    if model_report['protchoir_score'] <= 5:
+        model_report['model_clashscore'] = 'NA'
+        model_report['model_molprobity'] = 'NA'
+        model_report['quality_score'] = 'NA'
+
+    if 'M' in g_args.assessment and 'I' in g_args.assessment:
+        if g_args.sequence_mode is False and g_args.skip_conservation is False:
+            model_report['protchoir_score'] = round(sum([model_report['interfaces_score'], model_report['surface_score'], model_report['quality_score']])/3, 2)
+        else:
+            model_report['protchoir_score'] = round(sum([model_report['interfaces_score'], model_report['quality_score']])/2, 2)
+    elif 'M' in g_args.assessment:
+        model_report['protchoir_score'] = model_report['quality_score']
+    elif 'I' in g_args.assessment:
+        model_report['protchoir_score'] = model_report['interfaces_score']
+    else:
+        model_report['protchoir_score'] = 'NA'
+    if str(model_report['protchoir_score']) == 'NA':
+        model_report['score_color'] = 'grey'
+    elif model_report['protchoir_score'] <= 5:
         model_report['score_color'] = 'red'
     elif 5 < model_report['protchoir_score'] <= 7:
         model_report['score_color'] = 'orange'

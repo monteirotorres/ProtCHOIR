@@ -292,7 +292,7 @@ def create_genmodel(final_alignment, best_oligo_template, chains, args):
         if line.startswith('structureX:'):
             template_structure = line.split(':')[1]
     with open(genmodel_file, 'w') as f:
-        f.write('from modeller import *\nfrom modeller.automodel import *\nfrom '+os.path.basename(modelclass_file)+' import CHOIRModel\n')
+        f.write('import os\nimport sys\nsys.path.append(os.path.dirname(os.path.abspath( __file__ )))\nfrom modeller import *\nfrom modeller.automodel import *\nfrom '+os.path.basename(modelclass_file)+' import CHOIRModel\n')
         if args.modeller_threads > 1:
             f.write('from modeller.parallel import *\n')
         f.write('\nlog.verbose()\n\n\n')
@@ -471,7 +471,7 @@ def make_oligomer(input_file, largest_oligo_complexes, report, args, residue_ind
         report['best_template'] = best_oligo_template.split(':')[0]
         report['best_id'] = report['hits'][best_oligo_template]['id']
         report['best_cov'] = report['hits'][best_oligo_template]['coverage']
-        report['best_qscore'] = 'N/A'
+        report['best_qscore'] = 'NA'
         report['best_nchains'] = report['hits'][best_oligo_template]['final_homo_chains']
 
     report['topology_figure'] = './'+best_oligo_template.replace(':', '_')+'_CHOIR_Topology.png'
@@ -479,8 +479,9 @@ def make_oligomer(input_file, largest_oligo_complexes, report, args, residue_ind
     best_oligo_template_code = best_oligo_template.split(':')[0]
     clean_template_file = make_local_template(best_oligo_template_code)
     relevant_chains_file = extract_relevant_chains(clean_template_file, template_chains)
-    report['template_figure'], pymol_output = pctools.pymol_screenshot(relevant_chains_file, args)
-    print(pymol_output)
+    if args.generate_report is True:
+        report['template_figure'], pymol_output = pctools.pymol_screenshot(relevant_chains_file, args)
+        print(pymol_output)
     renamed_chains_file, chains_dict = rename_relevant_chains(relevant_chains_file)
     relevant_chains = [chains_dict[template_chain] for template_chain in template_chains]
 

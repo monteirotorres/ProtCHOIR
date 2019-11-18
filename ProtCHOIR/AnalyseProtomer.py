@@ -838,7 +838,7 @@ def analyze_protomer(input_file, report, args):
                 print(output)
 
                 if largest_cluster is None:
-                    report['hits'][hitchain]['qscore'] = 'N/A'
+                    report['hits'][hitchain]['qscore'] = 'NA'
                     report['hits'][hitchain]['final_homo_chains'] = '0'
                     print('-------------------------------------------------------------------')
                     continue
@@ -861,7 +861,7 @@ def analyze_protomer(input_file, report, args):
                 print(output)
 
                 if largest_cluster is None:
-                    report['hits'][hitchain]['qscore'] = 'N/A'
+                    report['hits'][hitchain]['qscore'] = 'NA'
                     report['hits'][hitchain]['final_homo_chains'] = '0'
                     print('-------------------------------------------------------------------')
                     continue
@@ -885,9 +885,9 @@ def analyze_protomer(input_file, report, args):
             report['hits'][hitchain]['id'] = str(hits[hitchain][1])
             report['hits'][hitchain]['coverage'] = str(hits[hitchain][2])
         else:
-            report['hits'][hitchain]['score'] = 'N/A'
+            report['hits'][hitchain]['score'] = 'NA'
             report['hits'][hitchain]['id'] = str(round(hits[hitchain], 1))
-            report['hits'][hitchain]['coverage'] = 'N/A'
+            report['hits'][hitchain]['coverage'] = 'NA'
 
     pickle.dump(largest_oligo_complexes, open('CHOIR_OligoComplexes.pickle', 'wb'))
 
