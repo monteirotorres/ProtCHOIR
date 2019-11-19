@@ -29,17 +29,9 @@ This project is licensed under Creative Commons license (CC-BY-4.0)
 
 # Description
 ###############################################################################
-'''
-Sets most widely used global variables across the ProtCHOIR scripts.
-'''
-
-
-# functions
-###############################################################################
-def print_welcome_message():
-    print(clrs['y']+tw.dedent("""
-    +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
-    +-+-+-+-+-+-+-+-+-+-+-+-+-+  \033[1;95mProtCHOIR\033[1;93m  +-+-+-+-+-+-+-+-+-+-+-+-+-+
+description = tw.dedent("""
+    \033[1;93m+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+    +-+-+-+-+-+-+-+-+-+-+-+-+-+  \033[1;95mProtCHOIR  \033[1;93m+-+-+-+-+-+-+-+-+-+-+-+-+-+
     +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
     \033[1;95m
                   Beause proteins only sing...
@@ -64,9 +56,25 @@ def print_welcome_message():
 
      Please cite:
      ProtCHOIR: Protein Complexes and Homo-Oligomeric Interfaces
-     Resolver. Torres,P.H.M.; Malhotra,S.; Blundell, T.L.
+     Resolver. Torres,P.H.M.; Malhotra,S.; Blundell, T.L.\033[1;0m
 
-          """)+clrs['n'])
+     +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+          """)
+
+epilogue = tw.dedent("""
+    Protchoir generates a summary file, whose columns are ordered as follows:
+
+    1 Input           7 H30Score      13 BestModel      19 ProtCHOIR
+    2 Seq.Mode        8 Template      14 Molprobity     20 Runtime
+    3 Vivace          9 Chains        15 RMSD           21 Exit
+    4 Length         10 Identity      16 Quality
+    5 TMSpans        11 Coverage      17 Surface
+    6 LikelyState    12 Av.QScore     18 Interfaces
+    """)
+
+
+# functions
+###############################################################################
 
 
 def create_choir_conf():
@@ -128,7 +136,13 @@ global pdb_homo_archive
 # Parse command line arguments
 ###############################################################################
 def argument_parsing():
-    parser = argparse.ArgumentParser()
+    parser = argparse.ArgumentParser(prog='ProtCHOIR',
+                                     formatter_class=argparse.RawDescriptionHelpFormatter,
+                                     description=description,
+                                     epilog=epilogue)
+
+    parser.add_argument('--version', action='version',
+                    version='%(prog)s 1.2.5')
 
     parser.add_argument('-f', '--file',
                         dest='input_file',
@@ -383,7 +397,7 @@ True and False
 
 # Initialise
 ###############################################################################
-print_welcome_message()
+print(description)
 
 # Retrieve the paths from provided configuration file
 if (not initial_args.config_file or not os.path.isfile(initial_args.config_file)) and not os.path.isfile('CHOIR.cfg'):

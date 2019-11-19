@@ -654,7 +654,6 @@ def analyze_protomer(input_file, report, args):
         # Subsection 1[a] #######################################################################
         pctools.print_subsection('1[a]', 'Loading input files')
         filename = os.path.basename(input_file)
-        report['input_filename'] = os.path.basename(filename)
         print('Will now begin analysis of '+clrs['p']+filename+clrs['n']+'\n')
         print('Loading structure...')
         pattern = 'REMARK   6 TEMPLATE:'
@@ -691,7 +690,8 @@ def analyze_protomer(input_file, report, args):
         if vivacemodel is False:
             hits, report = search_homologues(fasta_file, report, args)
             if not hits:
-                return None
+                report['exit'] = '2'
+                return None, report
         else:
             hits = parse_vivace_model(sequence, input_file)
             report['highest_scoring_state'] = 'NA'
@@ -699,7 +699,8 @@ def analyze_protomer(input_file, report, args):
 
             if not hits:
                 print('No Vivace-determined hits were found in the homo-oligomeric database. Try using --ignore-vivace.\n')
-                return None
+                report['exit'] = '1'
+                return None, report
 
         # Subsection 1[c] #######################################################################
         pctools.print_subsection('1[c]', 'Protomer structure check')
@@ -762,7 +763,6 @@ def analyze_protomer(input_file, report, args):
         if input_file.lower().endswith('.fasta'):
             fasta_file = input_file
             pdb_name = os.path.basename(fasta_file).split("_CHOIR_MonomerSequence.fasta")[0].replace('.', '_')
-            report['input_filename'] = os.path.basename(fasta_file)
             records = list(SeqIO.parse(fasta_file, "fasta"))
             sequence = records[0].seq
             report['protomer_residues'] = str(len(sequence))
@@ -795,7 +795,8 @@ def analyze_protomer(input_file, report, args):
         # Search for homologous proteins in all three CHOIR databases
         hits, report = search_homologues(fasta_file, report, args)
         if not hits:
-            return None
+            report['exit'] = '2'
+            return None, report
 
         # Subsection 1[c] #######################################################################
         # Inform there will be no structural analysis
@@ -874,7 +875,8 @@ def analyze_protomer(input_file, report, args):
 
     if not largest_oligo_complexes:
         print('**ProtCHOIR'+clrs['r']+' failed '+clrs['n']+'to select good oligomeric templates.\n')
-        return None
+        report['exit'] = '3'
+        return None, report
 
     for hitchain in hits:
         hit_code, chain = hitchain.split(':')
@@ -893,12 +895,12 @@ def analyze_protomer(input_file, report, args):
 
     if args.sequence_mode:
         if args.skip_conservation:
-            return pdb_name, largest_oligo_complexes, interfaces_dict, tmdata, report
+            return (pdb_name, largest_oligo_complexes, interfaces_dict, tmdata), report
         elif not args.skip_conservation:
-            return pdb_name, largest_oligo_complexes, interfaces_dict, entropies, z_entropies, tmdata, report
+            return (pdb_name, largest_oligo_complexes, interfaces_dict, entropies, z_entropies, tmdata), report
 
     elif not args.sequence_mode:
         if args.skip_conservation:
-            return pdb_name, largest_oligo_complexes, interfaces_dict, residue_index_mapping, tmdata, report
+            return (pdb_name, largest_oligo_complexes, interfaces_dict, residue_index_mapping, tmdata), report
         elif not args.skip_conservation:
-            return pdb_name, largest_oligo_complexes, interfaces_dict, entropies, z_entropies, residue_index_mapping, minx, maxx, tmdata, report
+            return (pdb_name, largest_oligo_complexes, interfaces_dict, entropies, z_entropies, residue_index_mapping, minx, maxx, tmdata), report

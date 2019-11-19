@@ -453,6 +453,7 @@ def make_oligomer(input_file, largest_oligo_complexes, report, args, residue_ind
             report['best_nchains'] = report['hits'][best_oligo_template]['final_homo_chains']
         else:
             print('No template had an average Q-score above cut-off of '+clrs['c']+str(args.qscore_cutoff)+clrs['n']+'\nTry lowering the cutoff or running in sequence mode.\n')
+            report['exit'] = '4'
             return None, None, report
 
 
