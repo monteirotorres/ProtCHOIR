@@ -285,7 +285,7 @@ def generate_ali(alignments, best_oligo_template, residue_index_mapping, args):
 
 def create_genmodel(final_alignment, best_oligo_template, chains, args):
     genmodel_file = os.path.join(workdir, input_name+'_'+best_oligo_template+'_CHOIR_Genmodel.py')
-    modelclass_file = os.path.join(workdir, input_name+'_'+best_oligo_template+'_CHOIR_ModelClass')
+    modelclass_file = 'CHOIR_ModelClass'
     for line in open(final_alignment, 'r').readlines():
         if line.startswith('sequence:'):
             sequence_name = line.split(':')[1]
