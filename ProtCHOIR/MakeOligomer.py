@@ -10,8 +10,10 @@ import collections
 import Bio.PDB as bpp
 import importlib.util
 import ProtCHOIR.Toolbox as pctools
+from Bio import SeqIO
 from multiprocessing import Pool
 from ProtCHOIR.Initialise import *
+from Bio.SubsMat import MatrixInfo
 
 # LICENSE
 ###############################################################################
@@ -133,6 +135,7 @@ def alignment_from_sequence(current_chain):
     fasta_out = os.path.join(workdir, output_basename+'_CHOIR_Align2D.fasta')
     with open(genali_file, 'w') as f:
         f.write('from modeller import *\nenv = environ()\naln = alignment(env)\n')
+        f.write('\nlog.verbose()\n\n\n')
         f.write("mdl = model(env, file='"+renamed_chains_file+"', model_segment=('FIRST:"+current_chain+"','LAST:"+current_chain+"'))\n")
         f.write("aln.append_model(mdl, align_codes='"+os.path.basename(renamed_chains_file)+"("+current_chain+")', atom_files='"+renamed_chains_file+"')\n")
         f.write("aln.append(file='"+g_input_file+"', align_codes='"+input_basename+"',alignment_format='FASTA', remove_gaps=False)\n")
@@ -141,11 +144,11 @@ def alignment_from_sequence(current_chain):
     alignment_log = genali_file.replace('.py', '.log')
     spec = importlib.util.spec_from_file_location("genmodel", genali_file)
     genali_module = importlib.util.module_from_spec(spec)
-    temp = sys.stdout
+    #temp = sys.stdout
     sys.stdout = open(alignment_log, 'w')
     spec.loader.exec_module(genali_module)
     sys.stdout.close()
-    sys.stdout = temp
+    #sys.stdout = temp
     with open(temp_out, 'r') as infile, open(fasta_out, 'w') as outfile:
         n = 1
         for line in infile.readlines():
@@ -404,6 +407,73 @@ def run_gesamt_parallel(chain):
 
     return qscore, rmsd, fasta_out, '\n'.join(output)
 
+def score_match(pair, matrix):
+    if pair not in matrix:
+        return matrix[(tuple(reversed(pair)))]
+    else:
+        return matrix[pair]
+
+def score_pairwise(seq1, seq2, matrix, gap_s, gap_e):
+    score = 0
+    gap = False
+    ipos = 0
+    fpos = 40
+    nwindows = -(-len(seq1)//40)
+    pctools.printv('Number of 40-residues windows: '+str(nwindows), g_args.verbosity)
+    wscores = []
+    for window in range(nwindows):
+        wscore = 0
+        if fpos > len(seq1)-1:
+            fpos = len(seq1)-1
+        pctools.printv(str(ipos+1)+' '+seq1[ipos:fpos]+' '+str(fpos), g_args.verbosity)
+        pctools.printv(str(ipos+1)+' '+seq2[ipos:fpos]+' '+str(fpos), g_args.verbosity)
+        for i in range(len(seq1))[ipos:fpos]:
+            pair = (seq1[i], seq2[i])
+            if not gap:
+                if pair == ('-', '-'):
+                    pass
+                elif '-' in pair:
+                    gap = True
+                    score += gap_s
+                    wscore += gap_s
+                else:
+                    score += score_match(pair, matrix)
+                    wscore += score_match(pair, matrix)
+            else:
+                if '-' not in pair:
+                    gap = False
+                    score += score_match(pair, matrix)
+                    wscore += score_match(pair, matrix)
+                else:
+                    score += gap_e
+                    wscore += gap_e
+
+        ipos += 40
+        fpos += 40
+        pctools.printv('Window score: '+str(wscore), g_args.verbosity)
+        wscores.append(wscore)
+
+    return score, wscores
+
+
+def score_alignment(alignment_file):
+    sequences = list(SeqIO.parse(alignment_file, "pir"))
+    blosum = MatrixInfo.blosum62
+    max_score, max_wscores = score_pairwise(str(sequences[1].seq).replace('/',''), str(sequences[1].seq).replace('/',''), blosum, -5, -1)
+    score, wscores = score_pairwise(str(sequences[0].seq).replace('/',''), str(sequences[1].seq).replace('/',''), blosum, -5, -1)
+    if score < 0:
+        score = 0
+    relative_score = round(score*100/max_score, 2)
+    relative_wscores = []
+    for max_wscore, wscore in zip(max_wscores, wscores):
+        if max_wscore != 0:
+            relative_wscore = round(wscore*100/max_wscore, 2)
+        else:
+            relative_wscore = 100
+        relative_wscores.append(relative_wscore)
+    return relative_score, relative_wscores
+
+
 
 # Main Function
 ###############################################################################
@@ -517,9 +587,21 @@ def make_oligomer(input_file, largest_oligo_complexes, report, args, residue_ind
                 print(output)
     print('Alignment files:\n'+clrs['g']+('\n').join([os.path.basename(i) for i in alignment_files])+clrs['n'])
 
-    # Subsection 2[c] #######################################################################
+
     # Generate final alignment which will be the input for Modeller
     final_alignment, full_residue_mapping = generate_ali(alignment_files, best_oligo_template_code, residue_index_mapping, args)
+    # Score said alignment and enforce treshold
+    report['relative_alignment_score'], relative_wscores = score_alignment(final_alignment)
+    print('\nFinal average relative score for alignment: '+str(report['relative_alignment_score'])+'%')
+    if not all([wscore >= 0 for wscore in relative_wscores]):
+        if args.sequence_mode is True:
+            print('\nThe alignment score was unacceptable for one or more stretches of the protein.\nTry running the default (structure) mode.\n')
+        else:
+            print('\nThe alignment score was unacceptable for one or more stretches of the protein.\nTry increasing the number of candidate templates.\n')
+        report['exit'] = '5'
+        return None, None, report
+
+    # Subsection 2[c] #######################################################################
     pctools.print_subsection('2[c]', 'Generating models')
     genmodel_file, expected_models = create_genmodel(final_alignment, best_oligo_template_code, relevant_chains, args)
     run_modeller(genmodel_file)

@@ -443,7 +443,11 @@
     <div style="border-bottom: 3px solid black">
       <span class=header>Model Interfaces Analysis</span>
     </div>
-    <img class=big src="{{report['comparison_plots']}}" alt="Interface Comparison Plots">
+    {% if report['comparison_plots'] %}
+      <img class=big src="{{report['comparison_plots']}}" alt="Interface Comparison Plots">
+    {% else %}
+      <span class="header"><b>Interfaces analysis not executed.</b></span>
+    {% endif %}
     <br>
     <br>
 	</section>

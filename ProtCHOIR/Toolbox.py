@@ -81,7 +81,7 @@ class SelectIfCA(bpp.Select):
     Called by: clean_pdb()
     '''
     def accept_residue(self, residue):
-        if residue.has_id('CA'):
+        if residue.has_id('CA') and bpp_poly.is_aa(residue.get_resname(), standard=True):
             return 1
         else:
             return 0

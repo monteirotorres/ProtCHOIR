@@ -142,7 +142,7 @@ def argument_parsing():
                                      epilog=epilogue)
 
     parser.add_argument('--version', action='version',
-                    version='%(prog)s 1.2.5')
+                    version='%(prog)s 1.2.6')
 
     parser.add_argument('-f', '--file',
                         dest='input_file',
@@ -245,6 +245,7 @@ def argument_parsing():
     parser.add_argument('--repeat-optimization',
                         dest='repeat_opt',
                         type=int, default=0,
+                        metavar='',
                         help='Defines how many times the Modeller optimization protocol should be executed')
 
     parser.add_argument('--generate-report',
@@ -256,6 +257,7 @@ def argument_parsing():
     parser.add_argument('-z', '--zip-output',
                         dest='zip_output',
                         type=int, default=0,
+                        metavar='',
                         help='Defines the compression level. [0] No compression, [1] partial compression, [2] full compression')
 
     parser.add_argument('-u', '--update-databases',

@@ -324,103 +324,108 @@ def analyse_model(oligomer):
         model_interfaces_list, interfaces_output = pctools.parse_interfaces(xml_out, relevant_chains, g_args.verbosity)
         template_interfaces_list = g_interfaces_dict[g_template_hitchain]
 
-        if g_args.verbosity > 0:
-            output.append(clrs['y']+'MODEL INTERFACES'+clrs['n'])
-            for model_interface in model_interfaces_list:
-                output.append(clrs['y']+' <> '.join(model_interface['chains'])+clrs['n'])
-                output.append(clrs['y']+'Interface Area: '+clrs['n']+str(model_interface['interface area'])+' A^2')
-                output.append(clrs['y']+'Interface Solvation Energy: '+clrs['n']+str(model_interface['interface solvation energy'])+' kcal/mol')
-                output.append(clrs['y']+'Hydrogen Bonds: '+clrs['n']+str(model_interface['hydrogen bonds']))
-                output.append(clrs['y']+'Salt Bridges: '+clrs['n']+str(model_interface['salt bridges']))
-                output.append(clrs['y']+'Disulphide Bridges: '+clrs['n']+str(model_interface['disulphide bridges'])+"\n\n")
+        if model_interfaces_list and template_interfaces_list:
+            if g_args.verbosity > 0:
+                output.append(clrs['y']+'MODEL INTERFACES'+clrs['n'])
+                for model_interface in model_interfaces_list:
+                    output.append(clrs['y']+' <> '.join(model_interface['chains'])+clrs['n'])
+                    output.append(clrs['y']+'Interface Area: '+clrs['n']+str(model_interface['interface area'])+' A^2')
+                    output.append(clrs['y']+'Interface Solvation Energy: '+clrs['n']+str(model_interface['interface solvation energy'])+' kcal/mol')
+                    output.append(clrs['y']+'Hydrogen Bonds: '+clrs['n']+str(model_interface['hydrogen bonds']))
+                    output.append(clrs['y']+'Salt Bridges: '+clrs['n']+str(model_interface['salt bridges']))
+                    output.append(clrs['y']+'Disulphide Bridges: '+clrs['n']+str(model_interface['disulphide bridges'])+"\n\n")
 
-        interfaces_comparison = {}
-        for template_interface in template_interfaces_list:
-            for model_interface in model_interfaces_list:
-                if set(model_interface['chains']) == set(template_interface['chains']):
-                    comparison_data = {}
+            interfaces_comparison = {}
+            for template_interface in template_interfaces_list:
+                for model_interface in model_interfaces_list:
+                    if set(model_interface['chains']) == set(template_interface['chains']):
+                        comparison_data = {}
 
-                    delta_area = round(model_interface['interface area']-template_interface['interface area'], 2)
-                    comparison_data['model area'] = model_interface['interface area']
-                    comparison_data['template area'] = template_interface['interface area']
-                    comparison_data['delta area'] = delta_area
-                    delta_energy = round(model_interface['interface solvation energy']-template_interface['interface solvation energy'], 2)
-                    comparison_data['model energy'] = model_interface['interface solvation energy']
-                    comparison_data['template energy'] = template_interface['interface solvation energy']
-                    comparison_data['delta energy'] = delta_energy
-                    delta_hb = round(model_interface['hydrogen bonds']-template_interface['hydrogen bonds'], 2)
-                    comparison_data['model hb'] = model_interface['hydrogen bonds']
-                    comparison_data['template hb'] = template_interface['hydrogen bonds']
-                    comparison_data['delta hb'] = delta_hb
-                    delta_sb = round(model_interface['salt bridges']-template_interface['salt bridges'], 2)
-                    comparison_data['model sb'] = model_interface['salt bridges']
-                    comparison_data['template sb'] = template_interface['salt bridges']
-                    comparison_data['delta sb'] = delta_sb
-                    delta_ss = round(model_interface['disulphide bridges']-template_interface['disulphide bridges'], 2)
-                    comparison_data['model ss'] = model_interface['disulphide bridges']
-                    comparison_data['template ss'] = template_interface['disulphide bridges']
-                    comparison_data['delta ss'] = delta_ss
+                        delta_area = round(model_interface['interface area']-template_interface['interface area'], 2)
+                        comparison_data['model area'] = model_interface['interface area']
+                        comparison_data['template area'] = template_interface['interface area']
+                        comparison_data['delta area'] = delta_area
+                        delta_energy = round(model_interface['interface solvation energy']-template_interface['interface solvation energy'], 2)
+                        comparison_data['model energy'] = model_interface['interface solvation energy']
+                        comparison_data['template energy'] = template_interface['interface solvation energy']
+                        comparison_data['delta energy'] = delta_energy
+                        delta_hb = round(model_interface['hydrogen bonds']-template_interface['hydrogen bonds'], 2)
+                        comparison_data['model hb'] = model_interface['hydrogen bonds']
+                        comparison_data['template hb'] = template_interface['hydrogen bonds']
+                        comparison_data['delta hb'] = delta_hb
+                        delta_sb = round(model_interface['salt bridges']-template_interface['salt bridges'], 2)
+                        comparison_data['model sb'] = model_interface['salt bridges']
+                        comparison_data['template sb'] = template_interface['salt bridges']
+                        comparison_data['delta sb'] = delta_sb
+                        delta_ss = round(model_interface['disulphide bridges']-template_interface['disulphide bridges'], 2)
+                        comparison_data['model ss'] = model_interface['disulphide bridges']
+                        comparison_data['template ss'] = template_interface['disulphide bridges']
+                        comparison_data['delta ss'] = delta_ss
 
 
-                    output.append(clrs['y']+'INTERFACES COMPARISON'+clrs['n'])
-                    output.append(' <> '.join(model_interface['chains']))
-                    if delta_area >= 0:
-                        emphasis_color = clrs['g']
-                        relative_area = 100
-                    else:
-                        emphasis_color = clrs['r']
-                        relative_area = round(model_interface['interface area'] * 100 / template_interface['interface area'], 2)
-                    output.append('Delta Interface Area: '+emphasis_color+str(delta_area)+clrs['n']+' A^2 ('+str(relative_area)+'%)')
-                    if delta_energy <= 0:
-                        emphasis_color = clrs['g']
-                        relative_energy = 100
-                    else:
-                        emphasis_color = clrs['r']
-                        if model_interface['interface solvation energy'] < 0 and template_interface['interface solvation energy'] < 0:
-                            relative_energy = round(model_interface['interface solvation energy'] * 100 / template_interface['interface solvation energy'], 2)
-                        elif model_interface['interface solvation energy'] > 0 and template_interface['interface solvation energy'] < 0:
-                            relative_energy = 0
-                        elif model_interface['interface solvation energy'] < 0 and template_interface['interface solvation energy'] > 0:
+                        output.append(clrs['y']+'INTERFACES COMPARISON'+clrs['n'])
+                        output.append(' <> '.join(model_interface['chains']))
+                        if delta_area >= 0:
+                            emphasis_color = clrs['g']
+                            relative_area = 100
+                        else:
+                            emphasis_color = clrs['r']
+                            relative_area = round(model_interface['interface area'] * 100 / template_interface['interface area'], 2)
+                        output.append('Delta Interface Area: '+emphasis_color+str(delta_area)+clrs['n']+' A^2 ('+str(relative_area)+'%)')
+                        if delta_energy <= 0:
+                            emphasis_color = clrs['g']
                             relative_energy = 100
-                        elif model_interface['interface solvation energy'] > 0 and template_interface['interface solvation energy'] > 0:
-                            relative_energy = 0
+                        else:
+                            emphasis_color = clrs['r']
+                            if model_interface['interface solvation energy'] < 0 and template_interface['interface solvation energy'] < 0:
+                                relative_energy = round(model_interface['interface solvation energy'] * 100 / template_interface['interface solvation energy'], 2)
+                            elif model_interface['interface solvation energy'] > 0 and template_interface['interface solvation energy'] < 0:
+                                relative_energy = 0
+                            elif model_interface['interface solvation energy'] < 0 and template_interface['interface solvation energy'] > 0:
+                                relative_energy = 100
+                            elif model_interface['interface solvation energy'] > 0 and template_interface['interface solvation energy'] > 0:
+                                relative_energy = 0
 
-                    output.append('Delta Interface Solvation Energy: '+emphasis_color+str(delta_energy)+clrs['n']+' kcal/mol ('+str(relative_energy)+'%)')
-                    if delta_hb >= 0:
-                        relative_hb = 100
-                        emphasis_color = clrs['g']
-                    else:
-                        emphasis_color = clrs['r']
-                        relative_hb = round(model_interface['hydrogen bonds'] * 100 / template_interface['hydrogen bonds'], 2)
-                    output.append('Delta Hydrogen Bonds: '+emphasis_color+str(delta_hb)+clrs['n']+' ('+str(relative_hb)+'%)')
-                    if delta_sb >= 0:
-                        relative_sb = 100
-                        emphasis_color = clrs['g']
-                    else:
-                        relative_sb = round(model_interface['salt bridges'] * 100 / template_interface['salt bridges'], 2)
-                        emphasis_color = clrs['r']
-                    output.append('Delta Salt Bridges: '+emphasis_color+str(delta_sb)+clrs['n']+' ('+str(relative_sb)+'%)')
-                    if delta_ss >= 0:
-                        relative_ss = 100
-                        emphasis_color = clrs['g']
-                    else:
-                        relative_ss = round(model_interface['disulphide bridges'] * 100 / template_interface['disulphide bridges'], 2)
-                        emphasis_color = clrs['r']
-                    output.append('Delta Disulphide Bridges: '+emphasis_color+str(delta_ss)+clrs['n']+' ('+str(relative_ss)+'%)\n')
+                        output.append('Delta Interface Solvation Energy: '+emphasis_color+str(delta_energy)+clrs['n']+' kcal/mol ('+str(relative_energy)+'%)')
+                        if delta_hb >= 0:
+                            relative_hb = 100
+                            emphasis_color = clrs['g']
+                        else:
+                            emphasis_color = clrs['r']
+                            relative_hb = round(model_interface['hydrogen bonds'] * 100 / template_interface['hydrogen bonds'], 2)
+                        output.append('Delta Hydrogen Bonds: '+emphasis_color+str(delta_hb)+clrs['n']+' ('+str(relative_hb)+'%)')
+                        if delta_sb >= 0:
+                            relative_sb = 100
+                            emphasis_color = clrs['g']
+                        else:
+                            relative_sb = round(model_interface['salt bridges'] * 100 / template_interface['salt bridges'], 2)
+                            emphasis_color = clrs['r']
+                        output.append('Delta Salt Bridges: '+emphasis_color+str(delta_sb)+clrs['n']+' ('+str(relative_sb)+'%)')
+                        if delta_ss >= 0:
+                            relative_ss = 100
+                            emphasis_color = clrs['g']
+                        else:
+                            relative_ss = round(model_interface['disulphide bridges'] * 100 / template_interface['disulphide bridges'], 2)
+                            emphasis_color = clrs['r']
+                        output.append('Delta Disulphide Bridges: '+emphasis_color+str(delta_ss)+clrs['n']+' ('+str(relative_ss)+'%)\n')
 
-                    comparison_data['score'] = round((relative_area+2*relative_energy+2*relative_hb+3*relative_sb+4*relative_ss)/12, 2)
-                    output.append('Interface score: '+str(comparison_data['score']))
-                    interfaces_comparison[''.join(sorted(model_interface['chains']))] = comparison_data
+                        comparison_data['score'] = round((relative_area+2*relative_energy+2*relative_hb+3*relative_sb+4*relative_ss)/12, 2)
+                        output.append('Interface score: '+str(comparison_data['score']))
+                        interfaces_comparison[''.join(sorted(model_interface['chains']))] = comparison_data
 
-        comparison_plots, interfaces_output = plot_deltas(model_oligomer_name, template, interfaces_comparison, g_args)
-        model_report['comparison_plots'] = os.path.basename(comparison_plots)
-        output.append(interfaces_output)
-        summed_score = 0
-        for interface, data in interfaces_comparison.items():
-            summed_score += data['score']
+            comparison_plots, interfaces_output = plot_deltas(model_oligomer_name, template, interfaces_comparison, g_args)
+            model_report['comparison_plots'] = os.path.basename(comparison_plots)
+            output.append(interfaces_output)
+            summed_score = 0
+            for interface, data in interfaces_comparison.items():
+                summed_score += data['score']
 
-        model_report['interfaces_score'] = round(summed_score/(10*len(interfaces_comparison)), 2)
-        output.append('Final interfaces score: '+str(model_report['interfaces_score']))
+            model_report['interfaces_score'] = round(summed_score/(10*len(interfaces_comparison)), 2)
+            output.append('Final interfaces score: '+str(model_report['interfaces_score']))
+        else:
+            model_report['surface_score'] = 0
+            model_report['interfaces_score'] = 0
+
     else:
         model_report['surface_score'] = 'NA'
         model_report['interfaces_score'] = 'NA'
