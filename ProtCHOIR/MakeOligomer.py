@@ -21,7 +21,7 @@ from Bio.SubsMat import MatrixInfo
 
 ProtCHOIR: A tool for generation of homo oligomers from pdb structures
 
-Authors: Torres, P.H.M.; Malhotra, S.; Blundell, T.L.
+Authors: Torres, P.H.M.; Blundell, T.L.
 
 [The University of Cambridge]
 
@@ -112,11 +112,11 @@ def restore_chain_identifiers(pdb_file, chains_dict, full_residue_mapping):
                     if type(full_residue_mapping[current]) is collections.OrderedDict:
                         for atom in residue:
                             new_residue.add(atom)
-                            new_residue.id = (' ', full_residue_mapping[current][residue.id[1]], ' ')
+                        new_residue.id = (' ', full_residue_mapping[current][residue.id[1]], ' ')
                     if type(full_residue_mapping[current]) is int:
                         for atom in residue:
                             new_residue.add(atom)
-                            new_residue.id = (' ', full_residue_mapping[current]+residue.id[1], ' ')
+                        new_residue.id = (' ', full_residue_mapping[current]+residue.id[1], ' ')
                     new_chain.add(new_residue)
                 new_model.add(new_chain)
     new_structure.add(new_model)
@@ -409,29 +409,30 @@ def run_gesamt_parallel(chain):
 
 def score_match(pair, matrix):
     if pair not in matrix:
-        return matrix[(tuple(reversed(pair)))]
+        return matrix[(tuple(reversed(pair)))]+4
     else:
-        return matrix[pair]
+        return matrix[pair]+4
 
 def score_pairwise(seq1, seq2, matrix, gap_s, gap_e):
     score = 0
     gap = False
     ipos = 0
-    fpos = 40
-    nwindows = -(-len(seq1)//40)
-    pctools.printv('Number of 40-residues windows: '+str(nwindows), g_args.verbosity)
+    fpos = 30
+    nwindows = -(-len(seq1)//30)
+    pctools.printv('Number of 30-residue segments: '+str(nwindows), g_args.verbosity)
     wscores = []
     for window in range(nwindows):
         wscore = 0
-        if fpos > len(seq1)-1:
-            fpos = len(seq1)-1
+        if fpos > len(seq1):
+            fpos = len(seq1)
         pctools.printv(str(ipos+1)+' '+seq1[ipos:fpos]+' '+str(fpos), g_args.verbosity)
         pctools.printv(str(ipos+1)+' '+seq2[ipos:fpos]+' '+str(fpos), g_args.verbosity)
         for i in range(len(seq1))[ipos:fpos]:
             pair = (seq1[i], seq2[i])
             if not gap:
                 if pair == ('-', '-'):
-                    pass
+                    score += 4
+                    wscore += 4
                 elif '-' in pair:
                     gap = True
                     score += gap_s
@@ -448,30 +449,72 @@ def score_pairwise(seq1, seq2, matrix, gap_s, gap_e):
                     score += gap_e
                     wscore += gap_e
 
-        ipos += 40
-        fpos += 40
-        pctools.printv('Window score: '+str(wscore), g_args.verbosity)
+        ipos += 30
+        fpos += 30
+        pctools.printv('Segment score: '+str(wscore), g_args.verbosity)
         wscores.append(wscore)
 
     return score, wscores
 
 
 def score_alignment(alignment_file):
+    print(clrs['b']+'SCORING ALIGNMENT'+clrs['n']+' in '+clrs['y']+os.path.basename(alignment_file)+clrs['n']+'\n')
     sequences = list(SeqIO.parse(alignment_file, "pir"))
-    blosum = MatrixInfo.blosum62
-    max_score, max_wscores = score_pairwise(str(sequences[1].seq).replace('/',''), str(sequences[1].seq).replace('/',''), blosum, -5, -1)
-    score, wscores = score_pairwise(str(sequences[0].seq).replace('/',''), str(sequences[1].seq).replace('/',''), blosum, -5, -1)
-    if score < 0:
-        score = 0
-    relative_score = round(score*100/max_score, 2)
-    relative_wscores = []
-    for max_wscore, wscore in zip(max_wscores, wscores):
-        if max_wscore != 0:
-            relative_wscore = round(wscore*100/max_wscore, 2)
+    query_chains = str(sequences[0].seq).split('/')
+    template_chains = str(sequences[1].seq).split('/')
+    trimmed_query_chains = []
+    trimmed_template_chains = []
+    for query_chain, template_chain in zip(query_chains, template_chains):
+
+        leading_gaps = 0
+        for r in query_chain:
+            if r == '-':
+                leading_gaps += 1
+            else:
+                break
+        trailing_gaps = 0
+        for r in query_chain[::-1]:
+            if r == '-':
+                trailing_gaps += 1
+            else:
+                break
+
+        if trailing_gaps == 0:
+            trimmed_query_chains.append(query_chain[leading_gaps:])
+            trimmed_template_chains.append(template_chain[leading_gaps:])
         else:
-            relative_wscore = 100
-        relative_wscores.append(relative_wscore)
-    return relative_score, relative_wscores
+            trimmed_query_chains.append(query_chain[leading_gaps:-trailing_gaps])
+            trimmed_template_chains.append(template_chain[leading_gaps:-trailing_gaps])
+
+    relative_wscores = []
+    relative_scores = []
+    for q_chain, t_chain in zip(trimmed_query_chains, trimmed_template_chains):
+        pctools.printv('\nCalculating '+clrs['y']+'maximum scores'+clrs['n']+' for chain segments:', g_args.verbosity)
+        max_score, max_wscores = score_pairwise(t_chain, t_chain, MatrixInfo.blosum62, 0, 0)
+        pctools.printv('\nCalculating '+clrs['y']+'actual scores'+clrs['n']+' for chain segments:', g_args.verbosity)
+        score, wscores = score_pairwise(q_chain, t_chain, MatrixInfo.blosum62, 0, 0)
+        relative_scores.append(round(score*100/max_score, 2))
+
+        for max_wscore, wscore in zip(max_wscores, wscores):
+            if max_wscore != 0:
+                relative_wscore = round(wscore*100/max_wscore, 2)
+            else:
+                relative_wscore = 100
+            relative_wscores.append(relative_wscore)
+
+    relative_score = sum(relative_scores) / len(relative_scores)
+    string = ''
+    for relative_wscore in relative_wscores:
+        if relative_wscore > 25:
+            color = 'g'
+        else:
+            color = 'r'
+        if string == '':
+            string += (clrs[color]+str(relative_wscore)+clrs['n'])
+        else:
+            string += (' ~ '+clrs[color]+str(relative_wscore)+clrs['n'])
+    print('\nRelative score per 30-res segment: '+string+clrs['n'])
+    return relative_score, relative_wscores, len(query_chains)
 
 
 
@@ -591,13 +634,17 @@ def make_oligomer(input_file, largest_oligo_complexes, report, args, residue_ind
     # Generate final alignment which will be the input for Modeller
     final_alignment, full_residue_mapping = generate_ali(alignment_files, best_oligo_template_code, residue_index_mapping, args)
     # Score said alignment and enforce treshold
-    report['relative_alignment_score'], relative_wscores = score_alignment(final_alignment)
-    print('\nFinal average relative score for alignment: '+str(report['relative_alignment_score'])+'%')
-    if not all([wscore >= 0 for wscore in relative_wscores]):
+    report['relative_alignment_score'], relative_wscores, nchains = score_alignment(final_alignment)
+    print('\nFinal average relative score for alignment: '+str(round(report['relative_alignment_score'], 2))+'%')
+    bad_streches = 0
+    for wscore in relative_wscores:
+        if wscore < 25:
+            bad_streches += 1
+    if bad_streches >= 2*nchains:
         if args.sequence_mode is True:
-            print('\nThe alignment score was unacceptable for one or more stretches of the protein.\nTry running the default (structure) mode.\n')
+            print('\nThe alignment score was unacceptable for '+clrs['r']+str(bad_streches)+clrs['n']+' 30-res segments of the protein complex.\nTry running the default (structure) mode.\n')
         else:
-            print('\nThe alignment score was unacceptable for one or more stretches of the protein.\nTry increasing the number of candidate templates.\n')
+            print('\nThe alignment score was unacceptable for '+clrs['r']+str(bad_streches)+clrs['n']+' 30-res segments of the protein complex.\nTry increasing the number of candidate templates.\n')
         report['exit'] = '5'
         return None, None, report
 

@@ -12,7 +12,7 @@ import textwrap as tw
 
 ProtCHOIR: A tool for generation of homo oligomers from pdb structures
 
-Authors: Torres, P.H.M.; Malhotra, S.; Blundell, T.L.
+Authors: Torres, P.H.M.; Blundell, T.L.
 
 [The University of Cambridge]
 
@@ -38,7 +38,7 @@ description = tw.dedent("""
     \033[1;93m
                                  ...when they are together!
     \033[1;0m
-      Copyright (C) 2018  Torres, P.H.M.; Malhotra, S.; Blundell, T.L.
+      Copyright (C) 2018  Torres, P.H.M.; Blundell, T.L.
 
     \033[1;93m
                       [The University of Cambridge]
@@ -56,7 +56,7 @@ description = tw.dedent("""
 
      Please cite:
      ProtCHOIR: Protein Complexes and Homo-Oligomeric Interfaces
-     Resolver. Torres,P.H.M.; Malhotra,S.; Blundell, T.L.\033[1;0m
+     Resolver. Torres,P.H.M.; Blundell, T.L.\033[1;0m
 
      +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
           """)
@@ -142,7 +142,7 @@ def argument_parsing():
                                      epilog=epilogue)
 
     parser.add_argument('--version', action='version',
-                    version='%(prog)s 1.2.6')
+                    version='%(prog)s 1.2.7')
 
     parser.add_argument('-f', '--file',
                         dest='input_file',

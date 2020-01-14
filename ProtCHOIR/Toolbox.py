@@ -31,7 +31,7 @@ from ProtCHOIR.Initialise import *
 
 ProtCHOIR: A tool for generation of homo oligomers from pdb structures
 
-Authors: Torres, P.H.M.; Malhotra, S.; Blundell, T.L.
+Authors: Torres, P.H.M.; Blundell, T.L.
 
 [The University of Cambridge]
 
@@ -81,7 +81,7 @@ class SelectIfCA(bpp.Select):
     Called by: clean_pdb()
     '''
     def accept_residue(self, residue):
-        if residue.has_id('CA') and bpp_poly.is_aa(residue.get_resname(), standard=True):
+        if residue.has_id('CA') and bpp_poly.is_aa(residue.get_resname(), standard=True) and residue.id[0] == " ":
             return 1
         else:
             return 0
@@ -296,6 +296,8 @@ def parse_pdb_structure(pdb):
             nchains = len(bpp.Selection.unfold_entities(structure, 'C'))
         except:
             print("Structure "+pdb_name+" could not be strictly parsed.")
+            structure = None
+            nchains = None
     return pdb_name, structure, nchains
 
 
@@ -317,9 +319,11 @@ def parse_any_structure(pdb):
         except:
             print("Structure "+pdb_name+" could not be strictly parsed.")
             structure = None
+            nchains = None
     else:
         print('\n'+clrs['r']+'The provided file is not in a supported structure format.'+clrs['n'])
         structure = None
+        nchains = None
     return pdb_name, structure, nchains
 
 
@@ -628,12 +632,16 @@ def run_pisa(pdb, chain, verbosity, gen_monomer_data=False, gen_oligomer_data=Fa
             if verbosity:
                 output.append(clrs['b']+'PISA'+clrs['n']+' command line: '+' '.join(pisa_cmd2))
             pisa_res = subprocess.Popen(pisa_cmd2, stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
+            pisa_xml = pisa_res.stdout.read().decode()
+            with open(session_name+chain+'_CHOIR_PisaInterfaces.xml', 'w') as f:
+                f.write(pisa_xml)
         except subprocess.CalledProcessError:
             output.append(clrs['r']+'PISA command '+' '.join(pisa_cmd2)+' returned non-zero status\n'+clrs['n'])
             pisa_error = True
-        pisa_xml = pisa_res.stdout.read().decode()
-        with open(session_name+chain+'_CHOIR_PisaInterfaces.xml', 'w') as f:
-            f.write(pisa_xml)
+        except UnicodeDecodeError:
+            output.append(clrs['r']+'PISA command '+' '.join(pisa_cmd2)+' output could not be properly decoded.\n'+clrs['n'])
+            pisa_error = True
+
 
         # Generate Assemblies XML
         pisa_cmd3 = [pisa_exe, session_name, '-xml', 'assemblies', pisa_cfg]
@@ -641,12 +649,15 @@ def run_pisa(pdb, chain, verbosity, gen_monomer_data=False, gen_oligomer_data=Fa
             if verbosity:
                 output.append(clrs['b']+'PISA'+clrs['n']+' command line: '+' '.join(pisa_cmd3))
             pisa_res = subprocess.Popen(pisa_cmd3, stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
+            pisa_xml = pisa_res.stdout.read().decode()
+            with open(session_name+chain+'_CHOIR_PisaAssemblies.xml', 'w') as f:
+                f.write(pisa_xml)
         except subprocess.CalledProcessError:
             output.append(clrs['r']+'PISA command '+' '.join(pisa_cmd3)+' returned non-zero status\n'+clrs['n'])
             pisa_error = True
-        pisa_xml = pisa_res.stdout.read().decode()
-        with open(session_name+chain+'_CHOIR_PisaAssemblies.xml', 'w') as f:
-            f.write(pisa_xml)
+        except UnicodeDecodeError:
+            output.append(clrs['r']+'PISA command '+' '.join(pisa_cmd3)+' output could not be properly decoded.\n'+clrs['n'])
+
 
     if gen_monomer_data is True:
         # Generate monomer data
@@ -661,6 +672,9 @@ def run_pisa(pdb, chain, verbosity, gen_monomer_data=False, gen_oligomer_data=Fa
                 f.write(pisa_out)
         except subprocess.CalledProcessError:
             output.append(clrs['r']+'PISA command '+' '.join(pisa_cmd4)+' returned non-zero status\n'+clrs['n'])
+            pisa_error = True
+        except UnicodeDecodeError:
+            output.append(clrs['r']+'PISA command '+' '.join(pisa_cmd4)+' output could not be properly decoded.\n'+clrs['n'])
             pisa_error = True
 
     # Erase Session
@@ -825,7 +839,6 @@ def run_gesamt(reference_name, reference_pdb, target_name, target_pdb, chain, ar
     else:
         output.append('Running '+clrs['b']+'GESAMT'+clrs['n']+' to align '+clrs['y']+target_name+clrs['n']+' to '+clrs['y']+reference_name+clrs['n']+' - Chain '+clrs['y']+chain+clrs['n'])
         fasta_out = target_name+"_"+reference_name+chain+'_CHOIR_Gesamt.fasta'
-        output.append(fasta_out)
         gesamtcmd = [gesamt_exe, reference_pdb, '-s', chain, target_pdb, '-a', fasta_out]
     if args.verbosity == 1:
         output.append(clrs['b']+'GESAMT'+clrs['n']+' command line: '+' '.join(gesamtcmd))
@@ -857,8 +870,12 @@ def run_gesamt(reference_name, reference_pdb, target_name, target_pdb, chain, ar
     if not os.path.isfile(fasta_out):
         output.append(clrs['r']+'GESAMT FAILED'+clrs['n'])
         fasta_out = 'None'
+        qscore = 0
+        rmsd = 'NA'
+    else:
+        output.append('Done running '+clrs['b']+'GESAMT'+clrs['n']+'.\n')
+        output.append('Alignment written to '+clrs['g']+os.path.basename(fasta_out)+clrs['n'])
 
-    output.append('Done running '+clrs['b']+'GESAMT'+clrs['n']+'.\n')
 
     return qscore, rmsd, fasta_out, '\n'.join(output)
 

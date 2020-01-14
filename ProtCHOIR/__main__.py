@@ -29,7 +29,7 @@ from ProtCHOIR.AnalyseOligomer import analyse_oligomers
 
 ProtCHOIR: A tool for generation of homo oligomers from pdb structures
 
-Authors: Torres, P.H.M.; Malhotra, S.; Blundell, T.L.
+Authors: Torres, P.H.M.; Blundell, T.L.
 
 [The University of Cambridge]
 
@@ -256,7 +256,7 @@ def main():
             f.write('\t'.join([str(placeholder_report[data]) for data in report_data])+'\n')
 
         # Start analysis of protomer
-        analyse_protomer_results, report = analyze_protomer(new_input_file, report, args)
+        analyse_protomer_results, report, args = analyze_protomer(new_input_file, report, args)
 
         # If no suitable homo-oligomeric template wasfound, exit nicely.
         if analyse_protomer_results is None:
@@ -270,9 +270,14 @@ def main():
             minx = None
             maxx = None
             if args.skip_conservation:
+                entropies = None
+                z_entropies = None
                 pdb_name, largest_oligo_complexes, interfaces_dict, tmdata = analyse_protomer_results
             elif not args.skip_conservation:
                 pdb_name, largest_oligo_complexes, interfaces_dict, entropies, z_entropies, tmdata = analyse_protomer_results
+                if entropies == z_entropies == minx == maxx == None:
+                    args.skip_conservation = True
+
 
         elif analyse_protomer_results is not None and args.sequence_mode is False:
             if args.skip_conservation:
@@ -280,9 +285,16 @@ def main():
                 maxx = None
                 entropies = None
                 z_entropies = None
-                pdb_name, largest_oligo_complexes, interfaces_dict, residue_index_mapping, tmdata = analyse_protomer_results
+                pdb_name, clean_input_file, largest_oligo_complexes, interfaces_dict, residue_index_mapping, tmdata = analyse_protomer_results
             elif not args.skip_conservation:
-                pdb_name, largest_oligo_complexes, interfaces_dict, entropies, z_entropies, residue_index_mapping, minx, maxx, tmdata = analyse_protomer_results
+                pdb_name, clean_input_file, largest_oligo_complexes, interfaces_dict, entropies, z_entropies, residue_index_mapping, minx, maxx, tmdata = analyse_protomer_results
+                if entropies == z_entropies == minx == maxx == None:
+                    args.skip_conservation = True
+
+        report['runtime_arguments']['skip_conservation'] = args.skip_conservation
+
+        if args.sequence_mode is False:
+            new_input_file = clean_input_file
 
         # Use information of complexes to build oligomers
         best_oligo_template, built_oligomers, report = make_oligomer(new_input_file, largest_oligo_complexes, report, args, residue_index_mapping=residue_index_mapping)

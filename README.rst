@@ -114,7 +114,6 @@ The image below summarizes the approach used by ProtCHOIR to build the homo-olig
 Authors
 *******
 Pedro Torres, Ph.D;
-Sony Malhotra, Ph.D;
 Tom Blundell, FRS, FMedSci.
 
 Department Of Biochemistry

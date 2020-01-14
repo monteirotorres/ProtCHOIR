@@ -17,7 +17,7 @@ import ProtCHOIR.Toolbox as pctools
 
 ProtCHOIR: A tool for generation of homo oligomers from pdb structures
 
-Authors: Torres, P.H.M.; Malhotra, S.; Blundell, T.L.
+Authors: Torres, P.H.M.; Blundell, T.L.
 
 [The University of Cambridge]
 
@@ -109,7 +109,10 @@ def _scale_data(data, ranges):
         if y1 > y2:
             d = _invert(d, (y1, y2))
             y1, y2 = y2, y1
-        sdata.append((d-y1) / (y2-y1) * (x2 - x1) + x1)
+        if y1 == y2:
+            sdata.append(y1)
+        else:
+            sdata.append((d-y1) / (y2-y1) * (x2 - x1) + x1)
     return sdata
 
 
@@ -239,7 +242,7 @@ def plot_molprobity(model_name, model_molprobity, template_name, template_molpro
     ranges = [(-100, 0),
               (0, 100),
               (-100, 0),
-              (-100, 0),
+              (-2*cbdev_max, 0),
               (-2*clashscore_max, 0),
               (-2*molprobity_max, 0)]
 
@@ -340,7 +343,7 @@ def analyse_model(oligomer):
                 for model_interface in model_interfaces_list:
                     if set(model_interface['chains']) == set(template_interface['chains']):
                         comparison_data = {}
-
+                        denominator = 12
                         delta_area = round(model_interface['interface area']-template_interface['interface area'], 2)
                         comparison_data['model area'] = model_interface['interface area']
                         comparison_data['template area'] = template_interface['interface area']
@@ -372,6 +375,7 @@ def analyse_model(oligomer):
                             emphasis_color = clrs['r']
                             relative_area = round(model_interface['interface area'] * 100 / template_interface['interface area'], 2)
                         output.append('Delta Interface Area: '+emphasis_color+str(delta_area)+clrs['n']+' A^2 ('+str(relative_area)+'%)')
+
                         if delta_energy <= 0:
                             emphasis_color = clrs['g']
                             relative_energy = 100
@@ -385,23 +389,37 @@ def analyse_model(oligomer):
                                 relative_energy = 100
                             elif model_interface['interface solvation energy'] > 0 and template_interface['interface solvation energy'] > 0:
                                 relative_energy = 0
-
                         output.append('Delta Interface Solvation Energy: '+emphasis_color+str(delta_energy)+clrs['n']+' kcal/mol ('+str(relative_energy)+'%)')
-                        if delta_hb >= 0:
+
+                        if model_interface['hydrogen bonds'] == template_interface['hydrogen bonds'] == 0:
+                            relative_hb = 0
+                            emphasis_color = clrs['r']
+                            denominator -= 2
+                        elif delta_hb >= 0:
                             relative_hb = 100
                             emphasis_color = clrs['g']
                         else:
                             emphasis_color = clrs['r']
                             relative_hb = round(model_interface['hydrogen bonds'] * 100 / template_interface['hydrogen bonds'], 2)
                         output.append('Delta Hydrogen Bonds: '+emphasis_color+str(delta_hb)+clrs['n']+' ('+str(relative_hb)+'%)')
-                        if delta_sb >= 0:
+
+                        if model_interface['salt bridges'] == template_interface['salt bridges'] == 0:
+                            relative_sb = 0
+                            emphasis_color = clrs['r']
+                            denominator -= 3
+                        elif delta_sb >= 0:
                             relative_sb = 100
                             emphasis_color = clrs['g']
                         else:
                             relative_sb = round(model_interface['salt bridges'] * 100 / template_interface['salt bridges'], 2)
                             emphasis_color = clrs['r']
                         output.append('Delta Salt Bridges: '+emphasis_color+str(delta_sb)+clrs['n']+' ('+str(relative_sb)+'%)')
-                        if delta_ss >= 0:
+
+                        if model_interface['disulphide bridges'] == template_interface['disulphide bridges'] == 0:
+                            relative_ss = 0
+                            emphasis_color = clrs['r']
+                            denominator -= 4
+                        elif delta_ss >= 0:
                             relative_ss = 100
                             emphasis_color = clrs['g']
                         else:
@@ -409,7 +427,10 @@ def analyse_model(oligomer):
                             emphasis_color = clrs['r']
                         output.append('Delta Disulphide Bridges: '+emphasis_color+str(delta_ss)+clrs['n']+' ('+str(relative_ss)+'%)\n')
 
-                        comparison_data['score'] = round((relative_area+2*relative_energy+2*relative_hb+3*relative_sb+4*relative_ss)/12, 2)
+                        if denominator == 0:
+                                comparison_data['score'] = 0
+                        else:
+                            comparison_data['score'] = round((relative_area+2*relative_energy+2*relative_hb+3*relative_sb+4*relative_ss)/denominator, 2)
                         output.append('Interface score: '+str(comparison_data['score']))
                         interfaces_comparison[''.join(sorted(model_interface['chains']))] = comparison_data
 

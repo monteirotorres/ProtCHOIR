@@ -26,7 +26,7 @@ from progressbar import progressbar as pg
 
 ProtCHOIR: A tool for generation of homo oligomers from pdb structures
 
-Authors: Torres, P.H.M.; Malhotra, S.; Blundell, T.L.
+Authors: Torres, P.H.M.; Blundell, T.L.
 
 [The University of Cambridge]
 
@@ -474,6 +474,9 @@ def analyse_hits(hit):
         output.append(clrs['r']+'Hit '+str(hit_code)+' not found in oligomeric database. Disregarding it.'+clrs['n']+'\n')
         return hit_code, None, None, None, '\n'.join(output)
     hit_pdb_name, hit_structure, hit_nchains = pctools.parse_pdb_structure(hit_pdb)
+    if not hit_structure:
+        output.append(clrs['r']+'Hit '+clrs['y']+hit_pdb+clrs['r']+' could not be parsed.\n'+clrs['n'])
+        return hit, None, None, None, None, None, None, '\n'.join(output)
     hit_nchains, hit_seqs, hit_chain_ids = pctools.extract_seqs(hit_structure, 0)
     hit_pids, protein_bool = pctools.get_pairwise_ids(hit_seqs, hit_nchains)
     n = 1
@@ -593,9 +596,13 @@ def search_homologues(fasta_file, report, args):
     highest_scoring_state = max(best_score, key=best_score.get)
     report['highest_scoring_state'] = highest_scoring_state
 
-    # Get H3O-Score
+    # If hits were found in any of the three databases: Get H3O-Score
     if max(best_score.values()) > 0:
         report['homo_oligomeric_over_other_score'] = round(best_score['HOMO-OLIGOMERIC']/max(best_score.values()), 2)
+    else:
+        report['homo_oligomeric_over_other_score'] = 'NA'
+        print('PSI-BLAST found hits in none of the three local databases')
+        return None, report
 
     # Report and proceed
     if not hits:
@@ -668,8 +675,13 @@ def analyze_protomer(input_file, report, args):
                     vivacemodel = True
                     break
         report['vivacemodel'] = str(vivacemodel)
-        # Check number of chains in input
+        # Check number of chains in input and clean input file
         pdb_name, structure, nchains = pctools.parse_any_structure(input_file)
+        clean_input_file = os.path.join(workdir, pdb_name+'_Clean.pdb')
+        io.set_structure(structure)
+        io.save(clean_input_file, pctools.SelectIfCA())
+        # Reload clean file
+        pdb_name, structure, nchains = pctools.parse_any_structure(clean_input_file)
         if nchains == 1:
             print('Structure '+clrs['p']+pdb_name+clrs['n']+' is '+clrs['y']+'MONOMERIC'+clrs['n']+' as expected')
         else:
@@ -691,7 +703,7 @@ def analyze_protomer(input_file, report, args):
             hits, report = search_homologues(fasta_file, report, args)
             if not hits:
                 report['exit'] = '2'
-                return None, report
+                return None, report, args
         else:
             hits = parse_vivace_model(sequence, input_file)
             report['highest_scoring_state'] = 'NA'
@@ -700,13 +712,13 @@ def analyze_protomer(input_file, report, args):
             if not hits:
                 print('No Vivace-determined hits were found in the homo-oligomeric database. Try using --ignore-vivace.\n')
                 report['exit'] = '1'
-                return None, report
+                return None, report, args
 
         # Subsection 1[c] #######################################################################
         pctools.print_subsection('1[c]', 'Protomer structure check')
         # Run PISA for monomer and get surface residues
         print('\nRunning '+clrs['b']+'PISA'+clrs['n']+' for '+clrs['p']+pdb_name+clrs['n']+'...')
-        output, pisa_error, monomer_data = pctools.run_pisa(input_file, '', args.verbosity, gen_monomer_data=True, gen_oligomer_data=False)
+        output, pisa_error, monomer_data = pctools.run_pisa(clean_input_file, '', args.verbosity, gen_monomer_data=True, gen_oligomer_data=False)
         if output:
             print(output)
         protomer_surface_residues = pctools.get_areas(monomer_data)
@@ -738,7 +750,14 @@ def analyze_protomer(input_file, report, args):
             # Use PSI-BLAST to search UniRef50 and return hits
             uni50hits = blast_protomer(fasta_file, uniref50, 50, 1, args.psiblast_threads, args.verbosity)
             if not uni50hits:
-                print('PSI-BLAST found NO hits in Uniref50 database')
+                print('PSI-BLAST found NO hits in Uniref50 database. Skipping conservation analysis.')
+                args.skip_conservation = True
+                entropies = None
+                z_entropies = None
+                minx = None
+                maxx = None
+                report['protomer_plot'], report['protomer_exposed_area'], report['protomer_hydrophobic_area'], report['protomer_conserved_area'], minx, maxx, analysis_output = pctools.plot_analysis(pdb_name, protomer_surface_residues, None, None, tmdata, args)
+
             if uni50hits:
                 multi_fasta = generate_msa_input(uni50hits, fasta_file, args.verbosity)
                 msa_file = run_mafft(multi_fasta, args.verbosity)
@@ -796,7 +815,7 @@ def analyze_protomer(input_file, report, args):
         hits, report = search_homologues(fasta_file, report, args)
         if not hits:
             report['exit'] = '2'
-            return None, report
+            return None, report, args
 
         # Subsection 1[c] #######################################################################
         # Inform there will be no structural analysis
@@ -808,7 +827,13 @@ def analyze_protomer(input_file, report, args):
             # Use PSI-BLAST to search UniRef50 and return hits
             uni50hits = blast_protomer(fasta_file, uniref50, 50, 1, args.psiblast_threads, args.verbosity)
             if not uni50hits:
-                print('PSI-BLAST found NO hits in Uniref50 database')
+                print('PSI-BLAST found NO hits in Uniref50 database. Skipping conservation analysis')
+                args.skip_conservation = True
+                entropies = None
+                z_entropies = None
+                minx = None
+                maxx = None
+                report['protomer_plot'] = pctools.plot_entropy_only(pdb_name, None, None, tmdata, args)
             if uni50hits:
                 multi_fasta = generate_msa_input(uni50hits, fasta_file, args.verbosity)
                 msa_file = run_mafft(multi_fasta, args.verbosity)
@@ -876,7 +901,7 @@ def analyze_protomer(input_file, report, args):
     if not largest_oligo_complexes:
         print('**ProtCHOIR'+clrs['r']+' failed '+clrs['n']+'to select good oligomeric templates.\n')
         report['exit'] = '3'
-        return None, report
+        return None, report, args
 
     for hitchain in hits:
         hit_code, chain = hitchain.split(':')
@@ -895,12 +920,12 @@ def analyze_protomer(input_file, report, args):
 
     if args.sequence_mode:
         if args.skip_conservation:
-            return (pdb_name, largest_oligo_complexes, interfaces_dict, tmdata), report
+            return (pdb_name, largest_oligo_complexes, interfaces_dict, tmdata), report, args
         elif not args.skip_conservation:
-            return (pdb_name, largest_oligo_complexes, interfaces_dict, entropies, z_entropies, tmdata), report
+            return (pdb_name, largest_oligo_complexes, interfaces_dict, entropies, z_entropies, tmdata), report, args
 
     elif not args.sequence_mode:
         if args.skip_conservation:
-            return (pdb_name, largest_oligo_complexes, interfaces_dict, residue_index_mapping, tmdata), report
+            return (pdb_name, clean_input_file, largest_oligo_complexes, interfaces_dict, residue_index_mapping, tmdata), report, args
         elif not args.skip_conservation:
-            return (pdb_name, largest_oligo_complexes, interfaces_dict, entropies, z_entropies, residue_index_mapping, minx, maxx, tmdata), report
+            return (pdb_name, clean_input_file, largest_oligo_complexes, interfaces_dict, entropies, z_entropies, residue_index_mapping, minx, maxx, tmdata), report, args

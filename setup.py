@@ -10,11 +10,11 @@ with open(path.join(here, 'README.rst'), encoding='utf-8') as f:
 setup(
   name = 'ProtCHOIR',
   packages = ['ProtCHOIR'],
-  version = '1.2.6',
+  version = '1.2.7',
   description = 'A Modeller-based pipeline to generate homo-oligomers.',
   long_description = long_description,
   license='CC-BY-4.0',
-  author = 'Pedro Torres, Sony Malhotra, Tom Blundell',
+  author = 'Pedro Torres, Tom Blundell',
   author_email = 'phm34@cam.ac.uk.com',
   url = 'https://github.com/monteirotorres/ProtCHOIR',
   include_package_data = True,
