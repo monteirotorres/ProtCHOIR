@@ -144,11 +144,11 @@ def alignment_from_sequence(current_chain):
     alignment_log = genali_file.replace('.py', '.log')
     spec = importlib.util.spec_from_file_location("genmodel", genali_file)
     genali_module = importlib.util.module_from_spec(spec)
-    #temp = sys.stdout
+    temp = sys.stdout
     sys.stdout = open(alignment_log, 'w')
     spec.loader.exec_module(genali_module)
-    sys.stdout.close()
-    #sys.stdout = temp
+    #sys.stdout.close()
+    sys.stdout = temp
     with open(temp_out, 'r') as infile, open(fasta_out, 'w') as outfile:
         n = 1
         for line in infile.readlines():
@@ -625,7 +625,7 @@ def make_oligomer(input_file, largest_oligo_complexes, report, args, residue_ind
                 print(output)
         else:
             for current_chain in chains_dict.values():
-                fasta_out, output = alignment_from_sequence(best_oligo_template_code, renamed_chains_file, input_file, current_chain)
+                fasta_out, output = alignment_from_sequence(current_chain)
                 alignment_files.append(fasta_out)
                 print(output)
     print('Alignment files:\n'+clrs['g']+('\n').join([os.path.basename(i) for i in alignment_files])+clrs['n'])

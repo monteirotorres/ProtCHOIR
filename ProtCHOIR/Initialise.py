@@ -142,7 +142,7 @@ def argument_parsing():
                                      epilog=epilogue)
 
     parser.add_argument('--version', action='version',
-                    version='%(prog)s 1.2.7')
+                    version='%(prog)s 1.2.9')
 
     parser.add_argument('-f', '--file',
                         dest='input_file',
@@ -364,11 +364,13 @@ maxasa = {'ALA':129.0,'ARG':274.0,'ASN':195.0,'ASP':193.0,
           'HIS':224.0,'ILE':197.0,'LEU':201.0,'LYS':236.0,
           'MET':224.0,'PHE':240.0,'PRO':159.0,'SER':155.0,
           'THR':172.0,'TRP':285.0,'TYR':263.0,'VAL':174.0,
-          'MME':224.0,'MSE':224.0}
+          'MME':224.0,'MSE':224.0, 'UNK':129.0}
 '''
 Theoretical maximum solvent accessible area values retrieved from:
 TIEN, M. Z., MEYER, A. G., SYDYKOVA, D. K., SPIELMAN, S. J., & WILKE, C. O.
 Maximum allowed solvent accessibilites of residues in proteins. PloS one, 2013.
+* B(ASX) takes the same value as D(ASP)
+* Z(GLX) takes the same value as E(GLU)
 '''
 
 #------------------------------------------------------------------------------
@@ -377,25 +379,29 @@ hydro = {'ALA': -0.17, 'ARG': -0.81, 'ASN': -0.42, 'ASP': -1.23,
          'HIS': -0.96, 'ILE': 0.31, 'LEU': 0.56, 'LYS': -0.99,
          'MET': 0.23, 'PHE': 1.13, 'PRO': -0.45, 'SER': -0.13,
          'THR': -0.14, 'TRP': 1.85, 'TYR': 0.94, 'VAL': -0.07,
-         'MME': 0.23, 'MSE': 0.23}
+         'MME': 0.23, 'MSE': 0.23, 'UNK': -0.17}
 '''
 Hydropobicity values retrieved from:
 WIMLEY, W. C.; WHITE, S. H. Experimentally determined hydrophobicity scale for
 proteins at membrane interfaces. Nature Structural Biology, 1996.
+* B(ASX) takes the same value as D(ASP)
+* Z(GLX) takes the same value as E(GLU)
 '''
 
 #------------------------------------------------------------------------------
 aa_bgf = {'A': 0.078, 'C': 0.024, 'D': 0.052, 'E': 0.059, 'F': 0.044,
           'G': 0.083, 'H': 0.025, 'I': 0.062, 'K': 0.056, 'L': 0.092,
           'M': 0.024, 'N': 0.041, 'P': 0.043, 'Q': 0.034, 'R': 0.051,
-          'S': 0.059, 'T': 0.055, 'V': 0.072, 'W': 0.014, 'Y': 0.034}
+          'S': 0.059, 'T': 0.055, 'V': 0.072, 'W': 0.014, 'Y': 0.034,
+          'B': 0.052, 'Z': 0.059}
 
 '''
 Amino acids background frequencies retrieved from:
 CAPRA, J. A.; SINGH, M. Predicting functionally important residues from sequence
 conservation. Bioinformatics, 2007.
+* B(ASX) takes the same value as D(ASP)
+* Z(GLX) takes the same value as E(GLU)
 '''
-True and False
 
 # Initialise
 ###############################################################################

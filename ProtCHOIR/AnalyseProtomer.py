@@ -788,7 +788,14 @@ def analyze_protomer(input_file, report, args):
 
         elif args.input_file.endswith('.pdb'):
             report['input_filename'] = os.path.basename(input_file)
+            # Check number of chains in input and clean input file
             pdb_name, structure, nchains = pctools.parse_any_structure(input_file)
+            clean_input_file = os.path.join(workdir, pdb_name+'_Clean.pdb')
+            io.set_structure(structure)
+            io.save(clean_input_file, pctools.SelectIfCA())
+            # Reload clean file
+            pdb_name, structure, nchains = pctools.parse_any_structure(clean_input_file)
+            print(pdb_name)
             nchains, seqs, chain_ids = pctools.extract_seqs(structure, 0)
             sequence = seqs[0][1]
             report['protomer_residues'] = str(len(sequence))
@@ -920,9 +927,9 @@ def analyze_protomer(input_file, report, args):
 
     if args.sequence_mode:
         if args.skip_conservation:
-            return (pdb_name, largest_oligo_complexes, interfaces_dict, tmdata), report, args
+            return (pdb_name, clean_input_file, largest_oligo_complexes, interfaces_dict, tmdata), report, args
         elif not args.skip_conservation:
-            return (pdb_name, largest_oligo_complexes, interfaces_dict, entropies, z_entropies, tmdata), report, args
+            return (pdb_name, clean_input_file, largest_oligo_complexes, interfaces_dict, entropies, z_entropies, tmdata), report, args
 
     elif not args.sequence_mode:
         if args.skip_conservation:
