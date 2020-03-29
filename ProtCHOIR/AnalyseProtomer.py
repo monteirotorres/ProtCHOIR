@@ -780,7 +780,7 @@ def analyze_protomer(input_file, report, args):
         # Subsection 1[a] #######################################################################
         pctools.print_subsection('1[a]', 'Loading input files')
         if input_file.lower().endswith('.fasta'):
-            fasta_file = input_file
+            fasta_file = clean_input_file = input_file
             pdb_name = os.path.basename(fasta_file).split("_CHOIR_MonomerSequence.fasta")[0].replace('.', '_')
             records = list(SeqIO.parse(fasta_file, "fasta"))
             sequence = records[0].seq

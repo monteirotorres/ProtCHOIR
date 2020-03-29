@@ -444,7 +444,8 @@ def analyse_model(oligomer):
             model_report['interfaces_score'] = round(summed_score/(10*len(interfaces_comparison)), 2)
             output.append('Final interfaces score: '+str(model_report['interfaces_score']))
         else:
-            model_report['surface_score'] = 0
+            if 'surface_score' not in model_report:
+                model_report['surface_score'] = 0
             model_report['interfaces_score'] = 0
 
     else:
