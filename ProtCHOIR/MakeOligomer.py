@@ -505,7 +505,7 @@ def score_alignment(alignment_file):
     relative_score = sum(relative_scores) / len(relative_scores)
     string = ''
     for relative_wscore in relative_wscores:
-        if relative_wscore > 25:
+        if relative_wscore > g_args.similarity_cutoff:
             color = 'g'
         else:
             color = 'r'
@@ -638,9 +638,9 @@ def make_oligomer(input_file, largest_oligo_complexes, report, args, residue_ind
     print('\nFinal average relative score for alignment: '+str(round(report['relative_alignment_score'], 2))+'%')
     bad_streches = 0
     for wscore in relative_wscores:
-        if wscore < 25:
+        if wscore < args.similarity_cutoff:
             bad_streches += 1
-    if bad_streches >= 2*nchains:
+    if bad_streches >= args.bad_streches*nchains:
         if args.sequence_mode is True:
             print('\nThe alignment score was unacceptable for '+clrs['r']+str(bad_streches)+clrs['n']+' 30-res segments of the protein complex.\nTry running the default (structure) mode.\n')
         else:

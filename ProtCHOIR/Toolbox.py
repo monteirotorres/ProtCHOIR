@@ -7,6 +7,8 @@ import time
 import gzip
 import shutil
 import jinja2
+import string
+import secrets
 import parasail
 import subprocess
 import matplotlib
@@ -595,16 +597,19 @@ def ls(dir):
 
 
 def run_pisa(pdb, chain, verbosity, gen_monomer_data=False, gen_oligomer_data=False):
+
+    alphabet = string.ascii_letters + string.digits
+    session = ''.join(secrets.choice(alphabet) for i in range(10))
     pisa_error = False
     output = []
     if '_CHOIR_CorrectedChains' in os.path.basename(pdb):
         session_name = os.path.basename(pdb).split('_CHOIR_CorrectedChains')[0]
     else:
         session_name = os.path.basename(pdb).split('.')[0]
-    pisa_cfg, pisa_tmp_dir = create_pisa_conf(os.getcwd(), session_name+chain)
+    pisa_cfg, pisa_tmp_dir = create_pisa_conf(os.getcwd(), session+chain)
 
     # Erase ocasional previous failed session
-    pisa_cmd0 = [pisa_exe, session_name, '-erase', pisa_cfg]
+    pisa_cmd0 = [pisa_exe, session, '-erase', pisa_cfg]
     try:
         if verbosity:
             output.append(clrs['b']+'PISA'+clrs['n']+' command line: '+' '.join(pisa_cmd0))
@@ -614,7 +619,7 @@ def run_pisa(pdb, chain, verbosity, gen_monomer_data=False, gen_oligomer_data=Fa
         pass
 
     # Analyse PDB file
-    pisa_cmd1 = [pisa_exe, session_name, '-analyse', pdb, pisa_cfg]
+    pisa_cmd1 = [pisa_exe, session, '-analyse', pdb, pisa_cfg]
     try:
         if verbosity:
             output.append(clrs['b']+'PISA'+clrs['n']+' command line: '+' '.join(pisa_cmd1))
@@ -627,7 +632,7 @@ def run_pisa(pdb, chain, verbosity, gen_monomer_data=False, gen_oligomer_data=Fa
     if gen_oligomer_data is True:
 
         # Generate Interfaces XML
-        pisa_cmd2 = [pisa_exe, session_name, '-xml', 'interfaces', pisa_cfg]
+        pisa_cmd2 = [pisa_exe, session, '-xml', 'interfaces', pisa_cfg]
         try:
             if verbosity:
                 output.append(clrs['b']+'PISA'+clrs['n']+' command line: '+' '.join(pisa_cmd2))
@@ -644,7 +649,7 @@ def run_pisa(pdb, chain, verbosity, gen_monomer_data=False, gen_oligomer_data=Fa
 
 
         # Generate Assemblies XML
-        pisa_cmd3 = [pisa_exe, session_name, '-xml', 'assemblies', pisa_cfg]
+        pisa_cmd3 = [pisa_exe, session, '-xml', 'assemblies', pisa_cfg]
         try:
             if verbosity:
                 output.append(clrs['b']+'PISA'+clrs['n']+' command line: '+' '.join(pisa_cmd3))
@@ -661,7 +666,7 @@ def run_pisa(pdb, chain, verbosity, gen_monomer_data=False, gen_oligomer_data=Fa
 
     if gen_monomer_data is True:
         # Generate monomer data
-        pisa_cmd4 = [pisa_exe, session_name, '-detail', 'monomer', '1', pisa_cfg]
+        pisa_cmd4 = [pisa_exe, session, '-detail', 'monomer', '1', pisa_cfg]
         try:
             if verbosity:
                 output.append(clrs['b']+'PISA'+clrs['n']+' command line: '+' '.join(pisa_cmd4))
@@ -678,7 +683,7 @@ def run_pisa(pdb, chain, verbosity, gen_monomer_data=False, gen_oligomer_data=Fa
             pisa_error = True
 
     # Erase Session
-    pisa_cmd5 = [pisa_exe, session_name, '-erase', pisa_cfg]
+    pisa_cmd5 = [pisa_exe, session, '-erase', pisa_cfg]
     try:
         if verbosity:
             output.append(clrs['b']+'PISA'+clrs['n']+' command line: '+' '.join(pisa_cmd5))

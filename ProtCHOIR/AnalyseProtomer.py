@@ -688,7 +688,7 @@ def analyze_protomer(input_file, report, args):
             print('Structure '+clrs['p']+pdb_name+clrs['n']+' contains '+clrs['y']+str(nchains)+clrs['n']+' chains.')
             print('Will consider only first chain')
             input_file = pctools.split_chains(pdb_name, structure, workdir)
-            pdb_name, structure, nchains = pctools.parse_any_structure(input_file)
+            pdb_name, structure, nchains = pctools.parse_any_structure(clean_input_file)
 
         # Extract sequence of (first) chain in structure
         nchains, seqs, chain_ids = pctools.extract_seqs(structure, 0)
@@ -732,7 +732,7 @@ def analyze_protomer(input_file, report, args):
         report['tmspans'] = str(len(tmdata[0]))
 
         # Run Molprobity for monomer
-        protomer_molprobity, molprobity_output = pctools.run_molprobity(input_file, args)
+        protomer_molprobity, molprobity_output = pctools.run_molprobity(clean_input_file, args)
         print(molprobity_output)
         print(clrs['y']+'MOLPROBITY ASSESSMENT'+clrs['n'])
         print('Rama. Fav.\t'+str(protomer_molprobity['rama_fav']))

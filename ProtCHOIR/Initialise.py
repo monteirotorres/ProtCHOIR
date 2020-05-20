@@ -142,7 +142,7 @@ def argument_parsing():
                                      epilog=epilogue)
 
     parser.add_argument('--version', action='version',
-                    version='%(prog)s 1.2.9')
+                    version='%(prog)s 1.2.11')
 
     parser.add_argument('-f', '--file',
                         dest='input_file',
@@ -174,6 +174,18 @@ def argument_parsing():
                         metavar='',
                         help='Determines the maximum allowed percent difference between PSI-BLAST scores in order to attempt modelling')
 
+    parser.add_argument('-s', '--similarity-cutoff',
+                        dest='similarity_cutoff',
+                        type=float, default=25,
+                        metavar='',
+                        help='Determines the cut-off for similarity over protein stretches to still attempt modelling')
+
+
+    parser.add_argument('--bad-stretches',
+                        dest='bad_streches',
+                        type=int, default=2,
+                        metavar='',
+                        help='Determines the number of low similarity stretches that still allows modelling')
 
     parser.add_argument('-r', '--refine-level',
                         dest='refine_level',

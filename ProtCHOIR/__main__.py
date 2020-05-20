@@ -197,10 +197,11 @@ def main():
             args.assessment = 'MIG'
             args.plot_topologies = True
 
-        # Deal with dots in the input file and remove dots
+        # Deal with dots and dashes in the input file and remove dots
         if input_file.lower().endswith('.pdb'):
             input_basename = os.path.basename(input_file).split('.pdb')[0]
             input_basename = input_basename.replace(".", "_")
+            input_basename = input_basename.replace("-", "_")
             new_input_file = input_basename+'.pdb'
             if os.path.basename(input_file) == os.path.basename(new_input_file):
                 pass
@@ -211,6 +212,7 @@ def main():
         elif input_file.lower().endswith('.fasta'):
             input_basename = os.path.basename(input_file).split('.fasta')[0]
             input_basename = input_basename.replace(".", "_")
+            input_basename = input_basename.replace("-", "_")
             new_input_file = os.path.join(outdir, input_basename+'_CHOIR_MonomerSequence.fasta')
             with open(input_file, 'r') as infile, open(new_input_file, 'w') as outfile:
                 outfile.write('>'+input_basename+'\n')

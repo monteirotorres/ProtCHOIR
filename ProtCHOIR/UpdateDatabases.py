@@ -108,13 +108,23 @@ def update_uniref(verbosity):
     '''
     uniref50_fasta = os.path.join(choirdb,'uniref50/uniref50.fasta')
     pctools.printv('Fetching uniref50.fasta...', verbosity)
-    wgetout = subprocess.check_output(['wget', '-m',
-                                       '-r', '-nH',
-                                       '--cut-dirs=4',
-                                       '--user=anonymous',
-                                       uniref50_ftp,
-                                       '-P', choirdb],
-                                       stderr=subprocess.STDOUT)
+    attempt = 0
+    while attempt < 3:
+        try:
+            wgetout = subprocess.check_output(['wget', '-m',
+                                               '-r', '-nH',
+                                               '--cut-dirs=4',
+                                               '--user=anonymous',
+                                               uniref50_ftp,
+                                               '-P', choirdb],
+                                               stderr=subprocess.STDOUT)
+            break
+        except:
+            attempt += 1
+            if attempt < 3:
+                print('Attempt '+str(attempt)+' failed, trying again.')
+            if attempt == 3:
+                print('Failed to download UniRef50 in 3 attempts. Try again later.')
 
     no_wget = 'uniref50.fasta.gz’ -- not retrieving'
 
