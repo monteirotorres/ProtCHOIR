@@ -59,6 +59,21 @@
     align-items: center;
   }
 
+  div.thirdbox {
+    width: 33%;
+    display: inline-block;
+    align-items: center;
+    margin: 1% auto;
+    text-align:left;
+    border-radius: 15px;
+    display: inline-block;
+    overflow-wrap: break-word;
+    word-wrap: break-word;
+    hyphens: auto;
+    font-size: 12px;
+    padding: 12px;
+  }
+
   div.bigbox{
     margin: 1% auto;
     text-align:left;
@@ -82,7 +97,7 @@
     overflow-wrap: break-word;
     word-wrap: break-word;
     hyphens: auto;
-    font-size: 1.1vmax;
+    font-size: 0.9vmax;
     padding: 12px;
   }
   div.vertical-align {
@@ -174,11 +189,25 @@
       align-items: center;
     }
 
+    div.thirdbox {
+      width: 33%;
+      display: inline-block;
+      align-items: center;
+      margin: 1% auto;
+      text-align:left;
+      border-radius: 15px;
+      display: inline-block;
+      overflow-wrap: break-word;
+      word-wrap: break-word;
+      hyphens: auto;
+      font-size: 12px;
+      padding: 12px;
+    }
+
     div.bigbox{
       margin: 1% auto;
       text-align:left;
       border-radius: 15px;
-      padding: 1%;
       display: inline-block;
       overflow-wrap: break-word;
       word-wrap: break-word;
@@ -300,7 +329,7 @@
           {% endif %}
         </div>
       {% endif %}
-      <div class=smallbox style="width: 25%; background: #f7f4ba" >
+      <div class=smallbox style="width: 25%; background: #f7f4ba; column-count:2;column-rule-style: solid;column-gap: 20px; column-rule-width: 1px">
         <span><b>Runtime Arguments:</b></span>
         <br>
         {% for key, value in report['runtime_arguments'].items() %}
@@ -340,7 +369,7 @@
           </tr>
           {% for hit in report['hits'] %}
           <tr>
-            <td>{{report['hits'][hit]['hit_code']}}</td>
+            <td><a href='https://www.rcsb.org/structure/{{report['hits'][hit]['hit_code']}}'>{{report['hits'][hit]['hit_code']}}</a></td>
             <td>{{report['hits'][hit]['chain']}}</td>
             <td>{{report['hits'][hit]['id']}}</td>
             <td>{{report['hits'][hit]['coverage']}}</td>
@@ -367,10 +396,16 @@
         </div>
       </div>
       <div class=third>
-        <span class=header>Template Structure: {{report['best_template']}}</span>
+        <span class=header>Template Structure: <a href='https://www.rcsb.org/structure/{{report['best_template']}}'>{{report['best_template']}}</a></span>
         <img class=huge src="{{report['template_figure']}}" alt="Template Oligomer">
       </div>
-      <img class=small src="{{report['topology_figure']}}" alt="Template Topology">
+      {% if report['runtime_arguments']['allow_monomers'] == False %}
+        <img class=small src="{{report['topology_figure']}}" alt="Template Topology">
+      {% else %}
+        <div class="thirdbox" style="background: #eeeeee">
+          <span class="header"><b>Generating monomeric model. Template topology not taken into consideration.</b></span>
+        </div>
+      {% endif %}
     </div>
     <br>
     <br>
@@ -443,7 +478,7 @@
     <div style="border-bottom: 3px solid black">
       <span class=header>Model Interfaces Analysis</span>
     </div>
-    {% if report['comparison_plots'] %}
+    {% if report['comparison_plots'] != 'NA' %}
       <img class=big src="{{report['comparison_plots']}}" alt="Interface Comparison Plots">
     {% else %}
       <span class="header"><b>Interfaces analysis not executed.</b></span>

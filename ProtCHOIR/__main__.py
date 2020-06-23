@@ -191,7 +191,6 @@ def main():
         assert args.zip_output in [0, 1, 2], clrs['r']+'\n\n Compression level must be an integer number between 0 and 2.\n Run ./ProtCHOIR -h for more information\n\n'+clrs['n']
         assert all([i in set('MIG') for i in set(args.assessment)]) or args.assessment == 'N', clrs['r']+'\n\n Oligomer assessment type do not comply.\n Choose any combination of [G]Gesamt, [M]Molprobity, [I]Interfaces or choose [N] for None\n\n'+clrs['n']
 
-
         # Force generation of topologies and all assessments if final report is requested
         if args.generate_report is True:
             args.assessment = 'MIG'
@@ -227,6 +226,8 @@ def main():
             args.sequence_mode = True
         else:
             raise pctools.FileFormatError(clrs['r']+'\n\n Input format must be either pdb or fasta\n Run ./ProtCHOIR -h for more information\n\n'+clrs['n'])
+        if args.allow_monomers:
+            assert args.sequence_mode is True, clrs['r']+'\n\n To allow building monomers you must use sequence mode. \n Run ProtCHOIR -h for more information\n\n'+clrs['n']
 
         # Pickle Runtime arguments
         pickle.dump(args, open('CHOIR_Args.pickle', 'wb'))

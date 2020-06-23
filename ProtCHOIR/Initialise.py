@@ -109,7 +109,7 @@ def create_choir_conf():
         tmhmm2_exe = /opt/tmhmm-2.0c/bin/tmhmm
 
         # Root directory for the ProtCHOIR Database
-        choirdb = /data1/choirdb"""))
+        choirdb = /data/choirdb"""))
 
     print(clrs['g']+'Configuration file created!'+clrs['n']+' Please'+clrs['y']+' EDIT ITS CONTENTS '+clrs['n']+'to match your environment and run ProtCHOIR again.')
 
@@ -142,7 +142,7 @@ def argument_parsing():
                                      epilog=epilogue)
 
     parser.add_argument('--version', action='version',
-                    version='%(prog)s 1.2.11')
+                    version='%(prog)s 1.2.12')
 
     parser.add_argument('-f', '--file',
                         dest='input_file',
@@ -185,7 +185,7 @@ def argument_parsing():
                         dest='bad_streches',
                         type=int, default=2,
                         metavar='',
-                        help='Determines the number of low similarity stretches that still allows modelling')
+                        help='Determines the number of low similarity stretches per chain that still allows modelling')
 
     parser.add_argument('-r', '--refine-level',
                         dest='refine_level',
@@ -247,6 +247,12 @@ def argument_parsing():
                         action='store_true',
                         default=False,
                         help='Skip PSI-Blast against UniRef50 and entropy calculations')
+
+    parser.add_argument('--allow-monomers',
+                        dest='allow_monomers',
+                        action='store_true',
+                        default=False,
+                        help='Instructs ProtCHOIR to build monomeric structures if template oligomers are not top hits. Only available in sequence mode.')
 
     parser.add_argument('--symmetry',
                         dest='symmetry',
@@ -485,6 +491,9 @@ heteroblast = os.path.join(pdb_homo_archive, 'sequences/heterodb')
 
 # Blast database on UniRef50
 uniref50 = os.path.join(choirdb, 'uniref50/uniref50')
+
+# Blast database on seqres
+seqres = os.path.join(choirdb, 'seqres/seqres')
 
 # Blast database on pdbseq
 pdbseq = os.path.join(choirdb, 'pdbseq/pdbseq')

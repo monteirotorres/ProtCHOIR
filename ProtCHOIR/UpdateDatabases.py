@@ -47,6 +47,7 @@ used by ProtCHOIR.
 pdb_server = 'rsync.wwpdb.org::ftp'
 pdb_subdir = '/data/structures/divided/pdb/'
 pdb_subdir1 = '/data/biounit/PDB/divided/'
+seqres_ftp = 'ftp://ftp.wwpdb.org/pub/pdb/derived_data/pdb_seqres.txt.gz'
 port = '33444'
 uniref50_ftp = 'ftp://ftp.uniprot.org/pub/databases/uniprot/uniref/uniref50/uniref50.fasta.gz'
 # Functions
@@ -140,6 +141,48 @@ def update_uniref(verbosity):
                        '-out', uniref50])
 
 #def split_uniref(verbosity):
+def update_seqres(verbosity):
+    '''
+    Runs wget to update the local seqres database, decompresses it and runs
+    makeblastdb.
+    Called by: update_databases()
+    '''
+    seqres_dir = os.path.join(choirdb,'seqres')
+    if not os.path.isdir(seqres_dir):
+        os.mkdir(seqres_dir)
+    seqres_txt = os.path.join(seqres_dir,'pdb_seqres.txt')
+    seqres_fasta = os.path.join(seqres_dir,'seqres.fasta')
+    pctools.printv('Fetching pdb_seqres.txt...', verbosity)
+    attempt = 0
+    while attempt < 3:
+        try:
+            wgetout = subprocess.check_output(['wget', '-m',
+                                               '-r', '-nH',
+                                               '--cut-dirs=3',
+                                               '--user=anonymous',
+                                               seqres_ftp,
+                                               '-P', seqres_dir],
+                                               stderr=subprocess.STDOUT)
+            break
+        except:
+            attempt += 1
+            if attempt < 3:
+                print('Attempt '+str(attempt)+' failed, trying again.')
+            if attempt == 3:
+                print('Failed to download seqres in 3 attempts. Try again later.')
+
+    no_wget = 'seqres.txt.gz’ -- not retrieving'
+
+    if no_wget not in wgetout.decode('UTF-8') or not os.path.isfile(seqres_txt):
+        pctools.printv('Decompressing pdb_seqres.txt...', verbosity)
+
+        with gzip.open(seqres_txt+'.gz', 'rb') as fin, open(seqres_fasta, 'wb') as fout:
+            shutil.copyfileobj(fin,fout)
+    if no_wget not in wgetout.decode('UTF-8') or not os.path.isfile(seqres_fasta+'.pal'):
+        subprocess.run([makeblastdb_exe,'-in',
+                       seqres_fasta,
+                       '-parse_seqids', '-dbtype', 'prot', '-blastdb_version', '5',
+                       '-out', seqres])
 
 
 
@@ -556,6 +599,9 @@ def update_databases(verbosity):
     print('Updating UniRef50 database...')
     update_uniref(verbosity)
     print('\n\nDone updating UniRef50!\n')
+    print('Updating seqres database...')
+    update_seqres(verbosity)
+    print('\n\nDone updating seqres!\n')
     print('Curating ProtCHOIR database...')
     curate_homoDB(verbosity)
     print('\n\nDone Curating ProtCHOIR database!\n')

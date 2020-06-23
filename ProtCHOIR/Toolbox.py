@@ -65,7 +65,6 @@ class FileFormatError(Exception):
     or when the end of file is reached unexpectedly."""
     pass
 
-
 class SelectAA(bpp.Select):
     '''
     Biopython select class to select only aminoacids
@@ -337,7 +336,7 @@ def split_states(structure):
     chain_correspondence_dict = {}
     n = 1
     for chain in chains:
-        original = chain.id
+        original = str(chain.id)
         new = numalpha[str(n)]
         chain.id = 'X'+new
         chain_correspondence_dict[new] = original
@@ -346,7 +345,7 @@ def split_states(structure):
             break
     n = 1
     for chain in chains:
-        chain.id = chain.id[1]
+        chain.id = str(chain.id)[1]
         new_structure[0].add(chain)
         n += 1
         if n > 60:
@@ -566,6 +565,12 @@ def get_annotated_states(contents):
     if not software:
         software.append('NA')
     return author, software
+
+def is_nmr(contents):
+    exp_remark = r"REMARK 210  EXPERIMENT TYPE                : NMR"
+    for line in contents:
+        if re.match(exp_remark, line):
+            return True
 
 
 def author_agrees(oligo_dict, contents, nchains):

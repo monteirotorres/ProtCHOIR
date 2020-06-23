@@ -280,20 +280,19 @@ def analyse_model(oligomer):
     if g_args.generate_report is True:
         model_report['model_figures'], pymol_output = pctools.pymol_screenshot(oligomer, g_args, putty=True)
         output.append(pymol_output)
+    pdb_name, structure, nchains = pctools.parse_any_structure(oligomer)
+    nchains, seqs, chain_ids = pctools.extract_seqs(structure, 0)
+    relevant_chains = []
+    for seq in seqs:
+        relevant_chains.append(seq[0])
 
-    if 'I' in g_args.assessment:
+    pisa_output, pisa_error, protomer_data = pctools.run_pisa(oligomer, '', g_args.verbosity, gen_monomer_data=True, gen_oligomer_data=True)
+    protomer_surface_residues = pctools.get_areas(protomer_data)
+    model_report['assemblied_protomer_plot'], model_report['assemblied_protomer_exposed_area'], model_report['assemblied_protomer_hydrophobic_area'], model_report['assemblied_protomer_conserved_area'], minx, maxx, analysis_output = pctools.plot_analysis(pdb_name, protomer_surface_residues, g_entropies, g_z_entropies, g_tmdata, g_args, minx=g_minx, maxx=g_maxx)
+    output.append(analysis_output)
+
+    if 'I' in g_args.assessment and not g_args.allow_monomers:
         output.append(pctools.subsection('3'+'[I]', 'Interfaces Comparison: '+model_oligomer_name))
-        pdb_name, structure, nchains = pctools.parse_any_structure(oligomer)
-        nchains, seqs, chain_ids = pctools.extract_seqs(structure, 0)
-        relevant_chains = []
-        for seq in seqs:
-            relevant_chains.append(seq[0])
-
-        pisa_output, pisa_error, protomer_data = pctools.run_pisa(oligomer, '', g_args.verbosity, gen_monomer_data=True, gen_oligomer_data=True)
-        protomer_surface_residues = pctools.get_areas(protomer_data)
-        model_report['assemblied_protomer_plot'], model_report['assemblied_protomer_exposed_area'], model_report['assemblied_protomer_hydrophobic_area'], model_report['assemblied_protomer_conserved_area'], minx, maxx, analysis_output = pctools.plot_analysis(pdb_name, protomer_surface_residues, g_entropies, g_z_entropies, g_tmdata, g_args, minx=g_minx, maxx=g_maxx)
-        output.append(analysis_output)
-
         if g_args.sequence_mode is False and g_args.skip_conservation is False:
             model_report['exposed_area_reduction'] = int(100 * (float(model_report['assemblied_protomer_exposed_area']) - float(model_report['protomer_exposed_area'])) / float(model_report['protomer_exposed_area']))
             model_report['hydrophobic_area_reduction'] = int(100 * (float(model_report['assemblied_protomer_hydrophobic_area']) - float(model_report['protomer_hydrophobic_area'])) / float(model_report['protomer_hydrophobic_area']))
@@ -452,7 +451,6 @@ def analyse_model(oligomer):
         model_report['surface_score'] = 'NA'
         model_report['interfaces_score'] = 'NA'
         model_report['comparison_plots'] = 'NA'
-        model_report['assemblied_protomer_plot'] = 'NA'
         model_report['assemblied_protomer_exposed_area'] = 'NA'
         model_report['assemblied_protomer_hydrophobic_area'] = 'NA'
         model_report['assemblied_protomer_conserved_area'] = 'NA'
@@ -497,7 +495,7 @@ def analyse_model(oligomer):
         model_report['model_molprobity'] = 'NA'
         model_report['quality_score'] = 'NA'
 
-    if 'M' in g_args.assessment and 'I' in g_args.assessment:
+    if 'M' in g_args.assessment and 'I' in g_args.assessment and not g_args.allow_monomers:
         if g_args.sequence_mode is False and g_args.skip_conservation is False:
             model_report['protchoir_score'] = round(sum([model_report['interfaces_score'], model_report['surface_score'], model_report['quality_score']])/3, 2)
         else:
@@ -505,7 +503,10 @@ def analyse_model(oligomer):
     elif 'M' in g_args.assessment:
         model_report['protchoir_score'] = model_report['quality_score']
     elif 'I' in g_args.assessment:
-        model_report['protchoir_score'] = model_report['interfaces_score']
+        if g_args.sequence_mode is False and g_args.skip_conservation is False:
+            model_report['protchoir_score'] = round(sum([model_report['interfaces_score'], model_report['surface_score']])/2, 2)
+        else:
+            model_report['protchoir_score'] = model_report['interfaces_score']
     else:
         model_report['protchoir_score'] = 'NA'
     if str(model_report['protchoir_score']) == 'NA':

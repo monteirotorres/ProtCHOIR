@@ -39,23 +39,23 @@ This project is licensed under Creative Commons license (CC-BY-4.0)
 ###############################################################################
 
 
-# Dictionaries
-###############################################################################
-
-
-# Global Variables
-###############################################################################
-
-
-# Classes
-###############################################################################
 
 
 # Functions
 ###############################################################################
 def make_local_template(best_oligo_template):
     middle_letters_best = best_oligo_template[1:3]
-    best_template_file = os.path.join(pdb_homo_archive, middle_letters_best, best_oligo_template+".pdb.gz")
+    if g_args.allow_monomers:
+        best_template_file = os.path.join(pdb_archive, middle_letters_best, 'pdb'+best_oligo_template+".ent.gz")
+        pdb_name, contents = pctools.parse_pdb_contents(best_template_file)
+        is_nmr = pctools.is_nmr(contents)
+        if is_nmr:
+            print(clrs['r']+'\n\n Selected template '+best_oligo_template+' is an NMR structure \n Will try a a different candidate.\n\n'+clrs['n'])
+            raise
+
+
+    else:
+        best_template_file = os.path.join(pdb_homo_archive, middle_letters_best, best_oligo_template+".pdb.gz")
     clean_template_file = os.path.join(workdir, best_oligo_template+"_CHOIR_CleanTemplate.pdb")
     pdb_name, structure, nchains = pctools.parse_any_structure(best_template_file)
     io.set_structure(structure)
@@ -568,6 +568,10 @@ def make_oligomer(input_file, largest_oligo_complexes, report, args, residue_ind
             print('No template had an average Q-score above cut-off of '+clrs['c']+str(args.qscore_cutoff)+clrs['n']+'\nTry lowering the cutoff or running in sequence mode.\n')
             report['exit'] = '4'
             return None, None, report
+        report['topology_figure'] = './'+best_oligo_template.replace(':', '_')+'_CHOIR_Topology.png'
+        template_chains = largest_oligo_complexes[best_oligo_template]
+        best_oligo_template_code = best_oligo_template.split(':')[0]
+        clean_template_file = make_local_template(best_oligo_template_code)
 
 
     elif args.sequence_mode is True:
@@ -581,17 +585,30 @@ def make_oligomer(input_file, largest_oligo_complexes, report, args, residue_ind
 
         pctools.print_section(2, 'OLIGOMER ASSEMBLING - SEQUENCE MODE')
         print(clrs['y']+"Skipping section 2[a] - Structural template selection"+clrs['n']+"\n")
-        best_oligo_template = list(largest_oligo_complexes)[0]
-        report['best_template'] = best_oligo_template.split(':')[0]
-        report['best_id'] = report['hits'][best_oligo_template]['id']
-        report['best_cov'] = report['hits'][best_oligo_template]['coverage']
-        report['best_qscore'] = 'NA'
-        report['best_nchains'] = report['hits'][best_oligo_template]['final_homo_chains']
+        attempt = 0
+        while attempt < len(largest_oligo_complexes):
+            try:
+                best_oligo_template = list(largest_oligo_complexes)[attempt]
+                report['best_template'] = best_oligo_template.split(':')[0]
+                report['best_id'] = report['hits'][best_oligo_template]['id']
+                report['best_cov'] = report['hits'][best_oligo_template]['coverage']
+                report['best_qscore'] = 'NA'
+                report['best_nchains'] = report['hits'][best_oligo_template]['final_homo_chains']
+                report['topology_figure'] = './'+best_oligo_template.replace(':', '_')+'_CHOIR_Topology.png'
+                template_chains = largest_oligo_complexes[best_oligo_template]
+                best_oligo_template_code = best_oligo_template.split(':')[0]
+                clean_template_file = make_local_template(best_oligo_template_code)
+                break
+            except:
+                attempt += 1
+                if attempt < len(largest_oligo_complexes):
+                    print('Attempt '+str(attempt)+' failed, trying a differente template candidate.')
+                if attempt == len(largest_oligo_complexes):
+                    print('Failed to find templates in local databases.')
+                    report['exit'] = '5'
+                    return None, None, report
 
-    report['topology_figure'] = './'+best_oligo_template.replace(':', '_')+'_CHOIR_Topology.png'
-    template_chains = largest_oligo_complexes[best_oligo_template]
-    best_oligo_template_code = best_oligo_template.split(':')[0]
-    clean_template_file = make_local_template(best_oligo_template_code)
+
     relevant_chains_file = extract_relevant_chains(clean_template_file, template_chains)
     if args.generate_report is True:
         report['template_figure'], pymol_output = pctools.pymol_screenshot(relevant_chains_file, args)
@@ -644,8 +661,8 @@ def make_oligomer(input_file, largest_oligo_complexes, report, args, residue_ind
         if args.sequence_mode is True:
             print('\nThe alignment score was unacceptable for '+clrs['r']+str(bad_streches)+clrs['n']+' 30-res segments of the protein complex.\nTry running the default (structure) mode.\n')
         else:
-            print('\nThe alignment score was unacceptable for '+clrs['r']+str(bad_streches)+clrs['n']+' 30-res segments of the protein complex.\nTry increasing the number of candidate templates.\n')
-        report['exit'] = '5'
+            print('\nThe alignment score was unacceptable for '+clrs['r']+str(bad_streches)+clrs['n']+' 30-res segments of the protein complex.\nTry increasing the number of candidate templates or tweaking the similarity cut-offs.\n')
+        report['exit'] = '6'
         return None, None, report
 
     # Subsection 2[c] #######################################################################
