@@ -54,32 +54,32 @@ This project is licensed under Creative Commons license (CC-BY-4.0)
 
 # Functions
 ###############################################################################
-def parse_vivace_model(sequence, modelfile):
-    print(clrs['g']+"Vivace model! New homologue search not necessary!\n"+clrs['n'])
+def parse_templated_model(sequence, modelfile):
+    print(clrs['g']+"Templated model! New homologue search not necessary!\n"+clrs['n'])
     pattern = 'REMARK   6 TEMPLATE:'
     templates_ids = {}
     with open(modelfile, 'r') as f:
         for line in f:
             if re.search(pattern, line):
                 template = line.split()[3]
-                vivace_pid = line.split()[-1].replace('%', '')
+                templated_pid = line.split()[-1].replace('%', '')
                 if len(template) == 5:
                     template_pdbcode = template[:4].lower()
-                    vivace_chain = template[4]
+                    templated_chain = template[4]
                 elif len(template) == 7:
                     if template.startswith('d'):
                         template_pdbcode = template[1:5].lower()
-                        vivace_chain = template[5]
+                        templated_chain = template[5]
                     else:
                         template_pdbcode = template[:4].lower()
-                        vivace_chain = template[4]
+                        templated_chain = template[4]
                 template_chain, pid = pctools.find_most_similar_chain(sequence, template_pdbcode)
                 if template_chain is None:
                     print(clrs['r']+'Hit '+str(template_pdbcode)+' not found in oligomeric database. Disregarding it.'+clrs['n']+'\n')
                     continue
                 else:
                     templates_ids[template_pdbcode+":"+template_chain] = float(pid)
-                    print('Vivace-determined hit: '+clrs['p']+template_pdbcode+clrs['n']+' Chain: '+clrs['y']+vivace_chain+clrs['n']+' id: '+clrs['c']+str(vivace_pid)+clrs['n'])
+                    print('Templated-determined hit: '+clrs['p']+template_pdbcode+clrs['n']+' Chain: '+clrs['y']+templated_chain+clrs['n']+' id: '+clrs['c']+str(templated_pid)+clrs['n'])
                     print('Most identical chain found in CHOIRdb oligomer: '+clrs['y']+template_chain+clrs['n']+' id: '+clrs['c']+str(pid)+clrs['n'])
     return templates_ids
 
@@ -184,11 +184,15 @@ def generate_msa_input(topn, fasta_file, verbosity):
     return multi_fasta
 
 
-def run_mafft(multi_fasta, verbosity):
+def run_mafft(multi_fasta, args):
+    if args.force_single_core is True:
+        mafft_threads = '1'
+    else:
+        mafft_threads = str(args.available_cores)
     print('\nRunning '+clrs['b']+'MAFFT'+clrs['n']+'...')
     msa_file = os.path.join(workdir, pdb_name+'_CHOIR_UniRef50Hits.msa')
-    mafftcmd = [mafft_exe, '--localpair', '--maxiterate', '1000', '--quiet', '--thread', '8', '--anysymbol', multi_fasta]
-    pctools.printv(clrs['b']+'MAFFT'+clrs['n']+' command line: '+' '.join(mafftcmd), verbosity)
+    mafftcmd = [mafft_exe, '--localpair', '--maxiterate', '1000', '--quiet', '--thread', mafft_threads, '--anysymbol', multi_fasta]
+    pctools.printv(clrs['b']+'MAFFT'+clrs['n']+' command line: '+' '.join(mafftcmd), args.verbosity)
     with open(msa_file, 'w') as f:
         subprocess.run(mafftcmd, stdout=f, check=True)
     print('Done running '+clrs['b']+'MAFFT'+clrs['n']+'. MSA file written to '+clrs['g']+os.path.basename(msa_file)+clrs['n'])
@@ -471,10 +475,10 @@ def plot_topology(complex_name, interfaces_list, cluster_dict):
 def analyse_hits(hit):
     output = []
     hit_code, hit_chain = hit.split(':')
-    if vivacemodel is False:
+    if templatedmodel is False:
         output.append('\nHit '+clrs['p']+hit_code.lower()+clrs['n']+', Chain: '+clrs['y']+hit_chain+clrs['n']+', Score: '+clrs['c']+str(hits[hit][0])+clrs['n']+', %id: '+clrs['c']+str(hits[hit][1])+clrs['n']+', Coverage: '+clrs['c']+str(hits[hit][2])+clrs['n'])
     else:
-        output.append('\nVivace Hit '+clrs['p']+hit_code.lower()+clrs['n']+', Chain: '+clrs['y']+hit_chain+clrs['n']+', %id: '+clrs['c']+str(hits[hit])+clrs['n'])
+        output.append('\nTemplated Hit '+clrs['p']+hit_code.lower()+clrs['n']+', Chain: '+clrs['y']+hit_chain+clrs['n']+', %id: '+clrs['c']+str(hits[hit])+clrs['n'])
     middle_letters = hit_code[1:3]
     hit_pdb = os.path.join(pdb_homo_archive, middle_letters, hit_code+'.pdb.gz')
     if not os.path.isfile(hit_pdb):
@@ -668,12 +672,12 @@ def search_homologues(fasta_file, report, args):
 def analyze_protomer(input_file, report, args):
     global workdir
     global pdb_name
-    global vivacemodel
+    global templatedmodel
     global hits
     global verbosity
     verbosity = args.verbosity
     workdir = os.getcwd()
-    ignorevivace = args.ignorevivace
+    ignoretemplated = args.ignoretemplated
     max_candidates = args.max_candidates
     largest_oligo_complexes = collections.OrderedDict()
     report['sequence_mode'] = str(args.sequence_mode)
@@ -689,15 +693,15 @@ def analyze_protomer(input_file, report, args):
         pattern = 'REMARK   6 TEMPLATE:'
         templates_ids = {}
 
-        # Check if we are dealing with a vivace model!
-        vivacemodel = False
-        if ignorevivace is False:
+        # Check if we are dealing with a templated model!
+        templatedmodel = False
+        if ignoretemplated is False:
             for line in open(input_file, 'r'):
                 if re.search(pattern, line):
-                    print(clrs['y']+'Dealing with a Vivace model! Kudos!'+clrs['n'])
-                    vivacemodel = True
+                    print(clrs['y']+'Dealing with a templated model! Kudos!'+clrs['n'])
+                    templatedmodel = True
                     break
-        report['vivacemodel'] = str(vivacemodel)
+        report['templatedmodel'] = str(templatedmodel)
         # Check number of chains in input and clean input file
         pdb_name, structure, nchains = pctools.parse_any_structure(input_file)
         clean_input_file = os.path.join(workdir, pdb_name+'_Clean.pdb')
@@ -710,7 +714,7 @@ def analyze_protomer(input_file, report, args):
         else:
             print('Structure '+clrs['p']+pdb_name+clrs['n']+' contains '+clrs['y']+str(nchains)+clrs['n']+' chains.')
             print('Will consider only first chain')
-            input_file = pctools.split_chains(pdb_name, structure, workdir)
+            clean_input_file = pctools.split_chains(pdb_name, structure, workdir)
             pdb_name, structure, nchains = pctools.parse_any_structure(clean_input_file)
 
         # Extract sequence of (first) chain in structure
@@ -721,19 +725,19 @@ def analyze_protomer(input_file, report, args):
 
         # Subsection 1[b] #######################################################################
         pctools.print_subsection('1[b]', 'Oligomeric homologues search')
-        # If not a Vivace model, search for homologous proteins in all three CHOIR databases
-        if vivacemodel is False:
+        # If not a Templated model, search for homologous proteins in all three CHOIR databases
+        if templatedmodel is False:
             hits, report = search_homologues(fasta_file, report, args)
             if not hits:
                 report['exit'] = '2'
                 return None, report, args
         else:
-            hits = parse_vivace_model(sequence, input_file)
+            hits = parse_templated_model(sequence, input_file)
             report['highest_scoring_state'] = 'NA'
             report['homo_oligomeric_over_other_score'] = 'NA'
 
             if not hits:
-                print('No Vivace-determined hits were found in the homo-oligomeric database. Try using --ignore-vivace.\n')
+                print('No Templated-determined hits were found in the homo-oligomeric database. Try using --ignore-templated.\n')
                 report['exit'] = '1'
                 return None, report, args
 
@@ -783,7 +787,7 @@ def analyze_protomer(input_file, report, args):
 
             if uni50hits:
                 multi_fasta = generate_msa_input(uni50hits, fasta_file, args.verbosity)
-                msa_file = run_mafft(multi_fasta, args.verbosity)
+                msa_file = run_mafft(multi_fasta, args)
                 trimmed_msa = trim_msa(msa_file)
                 msa_dict_trim = parse_msa(trimmed_msa)
                 entropies = relative_entropy(msa_dict_trim, protomer_surface_residues)
@@ -828,8 +832,8 @@ def analyze_protomer(input_file, report, args):
             else:
                 print('Structure '+clrs['p']+pdb_name+clrs['n']+' contains '+clrs['y']+str(nchains)+clrs['n']+' chains.')
                 print('Will consider only first chain')
-        vivacemodel = False
-        report['vivacemodel'] = str(vivacemodel)
+        templatedmodel = False
+        report['templatedmodel'] = str(templatedmodel)
 
         residue_index_mapping = {}
         for i, aa in enumerate(sequence):
@@ -866,7 +870,7 @@ def analyze_protomer(input_file, report, args):
                 report['protomer_plot'] = pctools.plot_entropy_only(pdb_name, None, None, tmdata, args)
             if uni50hits:
                 multi_fasta = generate_msa_input(uni50hits, fasta_file, args.verbosity)
-                msa_file = run_mafft(multi_fasta, args.verbosity)
+                msa_file = run_mafft(multi_fasta, args)
                 trimmed_msa = trim_msa(msa_file)
                 msa_dict_trim = parse_msa(trimmed_msa)
                 entropies = relative_entropy(msa_dict_trim, None)
@@ -954,7 +958,7 @@ def analyze_protomer(input_file, report, args):
         hit_code, chain = hitchain.split(':')
         report['hits'][hitchain]['hit_code'] = hit_code
         report['hits'][hitchain]['chain'] = chain
-        if vivacemodel is False:
+        if templatedmodel is False:
             report['hits'][hitchain]['score'] = str(hits[hitchain][0])
             report['hits'][hitchain]['id'] = str(hits[hitchain][1])
             report['hits'][hitchain]['coverage'] = str(hits[hitchain][2])

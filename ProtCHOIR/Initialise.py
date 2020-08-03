@@ -34,7 +34,7 @@ description = tw.dedent("""
     +-+-+-+-+-+-+-+-+-+-+-+-+-+  \033[1;95mProtCHOIR  \033[1;93m+-+-+-+-+-+-+-+-+-+-+-+-+-+
     +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
     \033[1;95m
-                  Beause proteins only sing...
+                  Because proteins only sing...
     \033[1;93m
                                  ...when they are together!
     \033[1;0m
@@ -66,7 +66,7 @@ epilogue = tw.dedent("""
 
     1 Input           7 H30Score      13 BestModel      19 ProtCHOIR
     2 Seq.Mode        8 Template      14 Molprobity     20 Runtime
-    3 Vivace          9 Chains        15 RMSD           21 Exit
+    3 Templated          9 Chains        15 RMSD           21 Exit
     4 Length         10 Identity      16 Quality
     5 TMSpans        11 Coverage      17 Surface
     6 LikelyState    12 Av.QScore     18 Interfaces
@@ -84,14 +84,8 @@ def create_choir_conf():
         # PyMol Executable
         pymol_exe = /usr/local/bin/pymol
 
-        # PISA Executable
-        pisa_exe = /opt/ccp4/ccp4-7.0/bin/pisa
-
-        # Gesamt Executable
-        gesamt_exe = /opt/ccp4/ccp4-7.0/bin/gesamt
-
-        # Molprobity Executable
-        molprobity_exe = /opt/ccp4/ccp4-7.0/bin/molprobity.molprobity
+        # CCP4 installation directory
+        ccp4_base = /opt/ccp4/ccp4-7.0
 
         # PSI-Blast Executable
         psiblast_exe = /usr/bin/psiblast
@@ -142,7 +136,7 @@ def argument_parsing():
                                      epilog=epilogue)
 
     parser.add_argument('--version', action='version',
-                    version='%(prog)s 1.2.12')
+                    version='%(prog)s 1.2.13')
 
     parser.add_argument('-f', '--file',
                         dest='input_file',
@@ -206,11 +200,11 @@ def argument_parsing():
                         default=False,
                         help='Instructs ProtCHOIR NOT to consider the input protomer (sequence mode)')
 
-    parser.add_argument('--ignore-vivace',
-                        dest='ignorevivace',
+    parser.add_argument('--ignore-templated',
+                        dest='ignoretemplated',
                         action='store_true',
                         default=False,
-                        help='Instructs ProtCHOIR NOT to consider Vivace-selected templates')
+                        help='Instructs ProtCHOIR NOT to consider Templated-selected templates')
 
     parser.add_argument('--plot-topologies',
                         dest='plot_topologies',
@@ -446,12 +440,11 @@ elif initial_args.config_file:
 for line in open(config_file, 'r'):
     if line.startswith('pymol_exe'):
         pymol_exe = line.split('=')[1].strip()
-    if line.startswith('pisa_exe'):
-        pisa_exe = line.split('=')[1].strip()
-    if line.startswith('gesamt_exe'):
-        gesamt_exe = line.split('=')[1].strip()
-    if line.startswith('molprobity_exe'):
-        molprobity_exe = line.split('=')[1].strip()
+    if line.startswith('ccp4_base'):
+        ccp4_base = line.split('=')[1].strip()
+        pisa_exe = os.path.join(ccp4_base, 'bin', 'pisa')
+        gesamt_exe = os.path.join(ccp4_base, 'bin', 'gesamt')
+        molprobity_exe = os.path.join(ccp4_base, 'bin', 'molprobity.molprobity')
     if line.startswith('psiblast_exe'):
         psiblast_exe = line.split('=')[1].strip()
     if line.startswith('blastdbcmd_exe'):

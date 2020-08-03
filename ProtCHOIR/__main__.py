@@ -60,7 +60,7 @@ This project is licensed under Creative Commons license (CC-BY-4.0)
 # Functions
 ###############################################################################
 def finalize(reports, input_basename, start_time, start_timestamp, args):
-    report_data = ['input_filename', 'sequence_mode', 'vivacemodel', 'protomer_residues', 'tmspans', 'highest_scoring_state', 'homo_oligomeric_over_other_score', 'best_template', 'best_nchains', 'best_id', 'best_cov', 'best_qscore', 'model_oligomer_name', 'model_molprobity', 'gesamt_rmsd', 'quality_score', 'surface_score', 'interfaces_score', 'protchoir_score', 'total_runtime', 'exit']
+    report_data = ['input_filename', 'sequence_mode', 'templatedmodel', 'protomer_residues', 'tmspans', 'highest_scoring_state', 'homo_oligomeric_over_other_score', 'best_template', 'best_nchains', 'best_id', 'best_cov', 'best_qscore', 'model_oligomer_name', 'model_molprobity', 'gesamt_rmsd', 'quality_score', 'surface_score', 'interfaces_score', 'protchoir_score', 'total_runtime', 'exit']
     if type(reports) is list:
         if args.zip_output == 2:
             # Don't prevent compression of anything
@@ -101,7 +101,7 @@ def finalize(reports, input_basename, start_time, start_timestamp, args):
         best_report['exit'] = '0'
 
     with open(summary_file, 'w') as f:
-        f.write('Input\tSeq.Mode\tVivace\tLength\tTMSpans\tLikelyState\tH3OScore\tTemplate\tChains\tIdentity\tCoverage\tAv.QScore\tBestModel\tMolprobity\tRMSD\tQuality\tSurface\tInterfaces\tProtCHOIR\tRuntime\tExit\n')
+        f.write('Input\tSeq.Mode\tTemplated\tLength\tTMSpans\tLikelyState\tH3OScore\tTemplate\tChains\tIdentity\tCoverage\tAv.QScore\tBestModel\tMolprobity\tRMSD\tQuality\tSurface\tInterfaces\tProtCHOIR\tRuntime\tExit\n')
         f.write('\t'.join([str(best_report[data]) for data in report_data])+'\n')
     # Finalise
     final_end_time = datetime.timestamp(datetime.now())
@@ -250,12 +250,12 @@ def main():
 
         # Write errorprof placeholder summary
         placeholder_report = report.copy()
-        report_data = ['input_filename', 'sequence_mode', 'vivacemodel', 'protomer_residues', 'tmspans', 'highest_scoring_state', 'homo_oligomeric_over_other_score', 'best_template', 'best_nchains', 'best_id', 'best_cov', 'best_qscore', 'model_oligomer_name', 'model_molprobity', 'gesamt_rmsd', 'protchoir_score', 'surface_score', 'interfaces_score', 'quality_score', 'total_runtime', 'exit']
+        report_data = ['input_filename', 'sequence_mode', 'templatedmodel', 'protomer_residues', 'tmspans', 'highest_scoring_state', 'homo_oligomeric_over_other_score', 'best_template', 'best_nchains', 'best_id', 'best_cov', 'best_qscore', 'model_oligomer_name', 'model_molprobity', 'gesamt_rmsd', 'protchoir_score', 'surface_score', 'interfaces_score', 'quality_score', 'total_runtime', 'exit']
         for data in report_data:
             if data not in placeholder_report:
                 placeholder_report[data] = 'NA'
         with open(input_basename+'_CHOIR_Summary.tsv', 'w') as f:
-            f.write('Input\tSeq.Mode\tVivace\tLength\tTMSpans\tLikelyState\tH3OScore\tTemplate\tChains\tIdentity\tCoverage\tAv.QScore\tBestModel\tMolprobity\tRMSD\tProtCHOIR\tSurface\tInterfaces\tQuality\tRuntime\tExit\n')
+            f.write('Input\tSeq.Mode\tTemplated\tLength\tTMSpans\tLikelyState\tH3OScore\tTemplate\tChains\tIdentity\tCoverage\tAv.QScore\tBestModel\tMolprobity\tRMSD\tProtCHOIR\tSurface\tInterfaces\tQuality\tRuntime\tExit\n')
             f.write('\t'.join([str(placeholder_report[data]) for data in report_data])+'\n')
 
         # Start analysis of protomer

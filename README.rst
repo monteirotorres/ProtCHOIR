@@ -84,7 +84,7 @@ Initial creation of the local database can be done with:
 
 :code:`ProtCHOIR -v -u --conf conf_file`
 
-Subsequent updates will not re-download and re-analyse the whole pd, but only the new (or updated) entries.
+Subsequent updates will not re-download and re-analyse the whole PDB database, but only the new (or updated) entries.
 
 Usage
 *****
@@ -92,15 +92,19 @@ After the initial database set-up, you may run the program normally via command 
 
 :code:`ProtCHOIR -v -f protomer.pdb --conf conf_file`
 
+If no conf file is yet in place, ProtCHOIR will ask you whether you want a default one to be generated, just run:
+
+:code:`ProtCHOIR`
+
+And then modify the generated configuration file to match your environment.
+
 To generate a full html report with detailed model analysis as output, run the program with:
 
 :code:`ProtCHOIR -v -f protomer.pdb --generate-report --conf conf_file`
 
-Running:
+To expose all available runtime options, run:
 
 :code:`ProtCHOIR -h`
-
-Will expose all available runtime options.
 
 Methodology Flowchart
 *********************

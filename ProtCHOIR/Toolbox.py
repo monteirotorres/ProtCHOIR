@@ -850,8 +850,13 @@ def run_gesamt(reference_name, reference_pdb, target_name, target_pdb, chain, ar
         output.append('Running '+clrs['b']+'GESAMT'+clrs['n']+' to align '+clrs['y']+target_name+clrs['n']+' to '+clrs['y']+reference_name+clrs['n']+' - Chain '+clrs['y']+chain+clrs['n'])
         fasta_out = target_name+"_"+reference_name+chain+'_CHOIR_Gesamt.fasta'
         gesamtcmd = [gesamt_exe, reference_pdb, '-s', chain, target_pdb, '-a', fasta_out]
+    if args.force_single_core is True:
+        gesamtcmd.append('-nthreads=1')
+    else:
+        gesamtcmd.append('-nthreads=auto')
     if args.verbosity == 1:
         output.append(clrs['b']+'GESAMT'+clrs['n']+' command line: '+' '.join(gesamtcmd))
+
 
     if 'qscore' in locals():
         del qscore
@@ -926,8 +931,13 @@ def pymol_screenshot_mono(monomer_structure, z_entropies, args):
     maxval = max([i[1] for i in z_entropies.items()])
     pymolrc = 'pymolrc'
     pymol_cmd = [pymol_exe, '-c']
+    if args.force_single_core is True:
+        max_cores = '1'
+    else:
+        max_cores = str(args.available_cores)
     with open(pymolrc, 'w') as f:
         f.write(tw.dedent("""
+                          set max_threads, """+max_cores+"""
                           load """+monomer_structure+"""
                           set ray_opaque_background,0
                           set ray_shadows, 0
@@ -1045,12 +1055,12 @@ def create_pisa_conf(confdir, id):
 
     #  SRS_DIR must point on the directory containing SRS files.
     SRS_DIR
-    /opt/ccp4/ccp4-7.0/share/ccp4srs/
+    """+ccp4_base+"""/share/ccp4srs/
 
 
     #  MOLREF_DIR must point on the directory containing MolRef files.
     MOLREF_DIR
-    /opt/ccp4/ccp4-7.0/share/pisa/
+    """+ccp4_base+"""/share/pisa/
 
 
     #  PISTORE_DIR must point on the directory containing files:
@@ -1060,13 +1070,13 @@ def create_pisa_conf(confdir, id):
     #          syminfo_pisa.lib and
     #          rcsb_symops.dat
     PISTORE_DIR
-    /opt/ccp4/ccp4-7.0/share/pisa/
+    """+ccp4_base+"""/share/pisa/
 
 
     #  HELP_DIR must point on the directory containing HTML-formatted
     #  help files.
     HELP_DIR
-    /opt/ccp4/ccp4-7.0/html/pisa/
+    """+ccp4_base+"""/html/pisa/
 
 
     #  DOWNLOAD_URL is used only in QtPISA. It must give a valid base URL
@@ -1089,7 +1099,7 @@ def create_pisa_conf(confdir, id):
 
     #  CCP4MG_COM must give the ccp4mg launch command line
     CCP4MG_COM
-    /opt/ccp4/ccp4-7.0/bin/ccp4mg
+    """+ccp4_base+"""/bin/ccp4mg
 
 
     #  SESSION_PREFIX is prefix for the names of session directories
