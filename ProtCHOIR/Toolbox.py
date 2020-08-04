@@ -845,7 +845,7 @@ def run_gesamt(reference_name, reference_pdb, target_name, target_pdb, chain, ar
     if chain is None:
         output.append('Running '+clrs['b']+'GESAMT'+clrs['n']+' to align '+clrs['y']+target_name+clrs['n']+' to '+clrs['y']+reference_name+clrs['n'])
         fasta_out = target_name+"_"+reference_name+'_CHOIR_Gesamt.fasta'
-        gesamtcmd = ['/opt/ccp4/ccp4-7.0/bin/gesamt', reference_pdb, target_pdb, '-a', fasta_out]
+        gesamtcmd = [gesamt_exe, reference_pdb, target_pdb, '-a', fasta_out]
     else:
         output.append('Running '+clrs['b']+'GESAMT'+clrs['n']+' to align '+clrs['y']+target_name+clrs['n']+' to '+clrs['y']+reference_name+clrs['n']+' - Chain '+clrs['y']+chain+clrs['n'])
         fasta_out = target_name+"_"+reference_name+chain+'_CHOIR_Gesamt.fasta'
