@@ -95,9 +95,6 @@ def write_fasta(sequence):
 def blast_protomer(fasta_file, database, nhits, nit, nthreads, params, verbosity):
     print('\nRunning '+clrs['b']+'PSI-BLAST'+clrs['n']+' ( '+clrs['c']+os.path.basename(fasta_file)+clrs['n']+' x '+clrs['c']+os.path.basename(database)+clrs['n']+' )')
     matrix, gapopen, gapextend = params.split('-')
-    print(matrix)
-    print(gapopen)
-    print(gapextend)
     blast_cmd = [psiblast_exe,
                  '-query', fasta_file,
                  '-db', database,
