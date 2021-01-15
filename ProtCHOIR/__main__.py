@@ -185,10 +185,11 @@ def main():
         assert os.path.isdir(pdb1_archive), clrs['r']+'\n\n Not able to find PDB1 assemblies directory.\n\n Does "'+pdb1_archive+'" exist?'+clrs['n']
         assert os.path.isdir(pdb_homo_archive), clrs['r']+'\n\n Not able to find ProtCHOIR database directory.\n\n Does "'+pdb_homo_archive+'" exist?'+clrs['n']
         assert os.path.isdir(ges_homo_archive), clrs['r']+'\n\n Not able to find GESAMT archive directory.\n\n Does "'+ges_homo_archive+'" exist?'+clrs['n']
-        assert args.refine_level in [0, 1, 2, 3, 4], clrs['r']+'\n\n Refinement level must be an integer number from 0 to 4.\n Run ./ProtCHOIR -h for more information\n\n'+clrs['n']
-        assert input_file is not None, clrs['r']+'\n\n Please inform the input file name.\n Run ./ProtCHOIR -h for more information.\n\n'+clrs['n']
+        assert args.refine_level in [0, 1, 2, 3, 4], clrs['r']+'\n\n Refinement level must be an integer number from 0 to 4.\n Run ProtCHOIR -h for more information\n\n'+clrs['n']
+        assert args.psiblast_params in psiblast_params, clrs['r']+'\n\n PSI-BLAST parameters invalid.\n Run ProtCHOIR -h for more information\n\n'+clrs['n']
+        assert input_file is not None, clrs['r']+'\n\n Please inform the input file name.\n Run ProtCHOIR -h for more information.\n\n'+clrs['n']
         assert os.path.isfile(input_file), clrs['r']+'\n\n Not able to find input file.\n\n Does "'+input_file+'" exist?\n'+clrs['n']
-        assert args.zip_output in [0, 1, 2], clrs['r']+'\n\n Compression level must be an integer number between 0 and 2.\n Run ./ProtCHOIR -h for more information\n\n'+clrs['n']
+        assert args.zip_output in [0, 1, 2], clrs['r']+'\n\n Compression level must be an integer number between 0 and 2.\n Run ProtCHOIR -h for more information\n\n'+clrs['n']
         assert all([i in set('MIG') for i in set(args.assessment)]) or args.assessment == 'N', clrs['r']+'\n\n Oligomer assessment type do not comply.\n Choose any combination of [G]Gesamt, [M]Molprobity, [I]Interfaces or choose [N] for None\n\n'+clrs['n']
 
         # Force generation of topologies and all assessments if final report is requested

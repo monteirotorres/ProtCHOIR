@@ -62,11 +62,36 @@ description = tw.dedent("""
           """)
 
 epilogue = tw.dedent("""
+    List of possible PSI-BLAST parameters:
+
+    BLOSUM90-6-2	BLOSUM90-7-2	BLOSUM90-8-2	BLOSUM90-9-1
+    BLOSUM90-9-2	BLOSUM90-10-1	BLOSUM90-11-1	BLOSUM80-6-2
+    BLOSUM80-7-2	BLOSUM80-8-2	BLOSUM80-9-1	BLOSUM80-9-2
+    BLOSUM80-10-1	BLOSUM80-11-1	BLOSUM80-13-2	BLOSUM80-25-2
+    BLOSUM62-6-2	BLOSUM62-7-2	BLOSUM62-8-2	BLOSUM62-9-1
+    BLOSUM62-9-2	BLOSUM62-10-1	BLOSUM62-10-2	BLOSUM62-11-1
+    BLOSUM62-11-2	BLOSUM62-12-1	BLOSUM62-13-1	BLOSUM50-9-3
+    BLOSUM50-10-3	BLOSUM50-11-3	BLOSUM50-12-2	BLOSUM50-12-3
+    BLOSUM50-13-2	BLOSUM50-13-3	BLOSUM50-14-2	BLOSUM50-15-1
+    BLOSUM50-15-2	BLOSUM50-16-1	BLOSUM50-16-2	BLOSUM50-17-1
+    BLOSUM50-18-1	BLOSUM45-10-3	BLOSUM45-11-3	BLOSUM45-12-2
+    BLOSUM45-12-3	BLOSUM45-13-2	BLOSUM45-13-3	BLOSUM45-14-2
+    BLOSUM45-15-2	BLOSUM45-16-1	BLOSUM45-16-2	BLOSUM45-17-1
+    BLOSUM45-18-1	BLOSUM45-19-1
+
+    PAM30-5-2	PAM30-6-2	PAM30-7-2	PAM30-8-1
+    PAM30-9-1	PAM30-10-1	PAM70-6-2	PAM70-7-2
+    PAM70-8-2	PAM70-9-1	PAM70-10-1	PAM70-11-1
+    PAM250-11-3	PAM250-12-3	PAM250-13-2	PAM250-13-3
+    PAM250-14-2	PAM250-14-3	PAM250-15-2	PAM250-15-3
+    PAM250-16-2	PAM250-17-1	PAM250-17-2	PAM250-18-1
+    PAM250-19-1	PAM250-20-1	PAM250-21-1
+
     Protchoir generates a summary file, whose columns are ordered as follows:
 
     1 Input           7 H30Score      13 BestModel      19 ProtCHOIR
     2 Seq.Mode        8 Template      14 Molprobity     20 Runtime
-    3 Templated          9 Chains        15 RMSD           21 Exit
+    3 Templated       9 Chains        15 RMSD           21 Exit
     4 Length         10 Identity      16 Quality
     5 TMSpans        11 Coverage      17 Surface
     6 LikelyState    12 Av.QScore     18 Interfaces
@@ -136,7 +161,7 @@ def argument_parsing():
                                      epilog=epilogue)
 
     parser.add_argument('--version', action='version',
-                    version='%(prog)s 1.2.14')
+                    version='%(prog)s 1.2.15')
 
     parser.add_argument('-f', '--file',
                         dest='input_file',
@@ -212,6 +237,20 @@ def argument_parsing():
                         default=False,
                         help='Plot oligmerization topologies of all candidate oligomeric templates')
 
+    parser.add_argument('--psiblast-iterations',
+                        dest='psiblast_iterations',
+                        type=int,
+                        default=1,
+                        metavar='',
+                        help='Number of PSI-BLAST iterations, defaults to 1')
+
+    parser.add_argument('--psiblast-params',
+                        dest='psiblast_params',
+                        type=str,
+                        default='BLOSUM80-25-2',
+                        metavar='',
+                        help='Number of threads to use for PSI-BLAST, defaults to the number of processors')
+
     parser.add_argument('--psiblast-threads',
                         dest='psiblast_threads',
                         type=int,
@@ -222,7 +261,7 @@ def argument_parsing():
                         dest='modeller_threads',
                         type=int,
                         metavar='',
-                        help='Number of threads to use for MODELLER, defaults to the smallest vaule between the number of processors or number of models')
+                        help='Number of threads to use for MODELLER, defaults to the smallest value between the number of processors or number of models')
 
     parser.add_argument('--multiprocess',
                         dest='multiprocess',
@@ -414,6 +453,33 @@ conservation. Bioinformatics, 2007.
 * B(ASX) takes the same value as D(ASP)
 * Z(GLX) takes the same value as E(GLU)
 '''
+
+#------------------------------------------------------------------------------
+psiblast_params = ["BLOSUM90-6-2", "BLOSUM90-7-2", "BLOSUM90-8-2",
+                   "BLOSUM90-9-1", "BLOSUM90-9-2", "BLOSUM90-10-1",
+                   "BLOSUM90-11-1", "BLOSUM80-6-2", "BLOSUM80-7-2",
+                   "BLOSUM80-8-2", "BLOSUM80-9-1", "BLOSUM80-9-2",
+                   "BLOSUM80-10-1", "BLOSUM80-11-1", "BLOSUM80-13-2",
+                   "BLOSUM80-25-2", "BLOSUM62-6-2", "BLOSUM62-7-2",
+                   "BLOSUM62-8-2", "BLOSUM62-9-1", "BLOSUM62-9-2",
+                   "BLOSUM62-10-1", "BLOSUM62-10-2", "BLOSUM62-11-1",
+                   "BLOSUM62-11-2", "BLOSUM62-12-1", "BLOSUM62-13-1",
+                   "BLOSUM50-9-3", "BLOSUM50-10-3", "BLOSUM50-11-3",
+                   "BLOSUM50-12-2", "BLOSUM50-12-3", "BLOSUM50-13-2",
+                   "BLOSUM50-13-3", "BLOSUM50-14-2", "BLOSUM50-15-1",
+                   "BLOSUM50-15-2", "BLOSUM50-16-1", "BLOSUM50-16-2",
+                   "BLOSUM50-17-1", "BLOSUM50-18-1", "BLOSUM45-10-3",
+                   "BLOSUM45-11-3", "BLOSUM45-12-2", "BLOSUM45-12-3",
+                   "BLOSUM45-13-2", "BLOSUM45-13-3", "BLOSUM45-14-2",
+                   "BLOSUM45-15-2", "BLOSUM45-16-1", "BLOSUM45-16-2",
+                   "BLOSUM45-17-1", "BLOSUM45-18-1", "BLOSUM45-19-1",
+                   "PAM30-5-2", "PAM30-6-2", "PAM30-7-2", "PAM30-8-1",
+                   "PAM30-9-1", "PAM30-10-1", "PAM70-6-2", "PAM70-7-2",
+                   "PAM70-8-2", "PAM70-9-1", "PAM70-10-1", "PAM70-11-1",
+                   "PAM250-11-3", "PAM250-12-3", "PAM250-13-2", "PAM250-13-3",
+                   "PAM250-14-2", "PAM250-14-3", "PAM250-15-2", "PAM250-15-3",
+                   "PAM250-16-2", "PAM250-17-1", "PAM250-17-2", "PAM250-18-1",
+                   "PAM250-19-1", "PAM250-20-1", "PAM250-21-1"]
 
 # Initialise
 ###############################################################################

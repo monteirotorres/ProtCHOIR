@@ -92,18 +92,22 @@ def write_fasta(sequence):
         f.write(wrapped_seq+'\n')
     return fasta_file
 
-def blast_protomer(fasta_file, database, nhits, nint, nthreads, verbosity):
+def blast_protomer(fasta_file, database, nhits, nit, nthreads, params, verbosity):
     print('\nRunning '+clrs['b']+'PSI-BLAST'+clrs['n']+' ( '+clrs['c']+os.path.basename(fasta_file)+clrs['n']+' x '+clrs['c']+os.path.basename(database)+clrs['n']+' )')
+    matrix, gapopen, gapextend = params.split('-')
+    print(matrix)
+    print(gapopen)
+    print(gapextend)
     blast_cmd = [psiblast_exe,
                  '-query', fasta_file,
                  '-db', database,
-                 '-gapopen', '25',
-                 '-gapextend', '2',
-                 '-matrix', 'BLOSUM80',
+                 '-gapopen', gapopen,
+                 '-gapextend', gapextend,
+                 '-matrix', matrix,
                  '-word_size', '3',
                  '-num_threads', str(nthreads),
                  '-inclusion_ethresh', '0.005',
-                 '-num_iterations', str(nint),
+                 '-num_iterations', str(nit),
                  '-outfmt', '5',
                  '-num_alignments', '500',
                  '-comp_based_stats', '1',
@@ -571,7 +575,7 @@ def search_homologues(fasta_file, report, args):
     best_score = {}
 
     # Search homo-oligomers database
-    hits = blast_protomer(fasta_file, homoblast, args.max_candidates, 1, args.psiblast_threads, args.verbosity)
+    hits = blast_protomer(fasta_file, homoblast, args.max_candidates, args.psiblast_iterations, args.psiblast_threads, args.psiblast_params, args.verbosity)
     if hits:
         best_score['HOMO-OLIGOMERIC'] = list(hits.items())[0][1][0]
         for hit in hits:
@@ -582,7 +586,7 @@ def search_homologues(fasta_file, report, args):
         best_score['HOMO-OLIGOMERIC'] = 0
 
     # Search monomers database
-    mono_hits = blast_protomer(fasta_file, monoblast, 3, 1, args.psiblast_threads, args.verbosity)
+    mono_hits = blast_protomer(fasta_file, monoblast, 3, args.psiblast_iterations, args.psiblast_threads, args.psiblast_params, args.verbosity)
     if mono_hits:
         best_score['MONOMERIC'] = list(mono_hits.items())[0][1][0]
         for hit in mono_hits:
@@ -593,7 +597,7 @@ def search_homologues(fasta_file, report, args):
         best_score['MONOMERIC'] = 0
 
     # Search hetero-oligomers database
-    hetero_hits = blast_protomer(fasta_file, heteroblast, 3, 1, args.psiblast_threads, args.verbosity)
+    hetero_hits = blast_protomer(fasta_file, heteroblast, 3, args.psiblast_iterations, args.psiblast_threads, args.psiblast_params, args.verbosity)
     if hetero_hits:
         best_score['HETERO-OLIGOMERIC'] = list(hetero_hits.items())[0][1][0]
         for hit in hetero_hits:
@@ -620,7 +624,7 @@ def search_homologues(fasta_file, report, args):
     # Report and proceed
     if highest_scoring_state != 'HOMO-OLIGOMERIC' and args.allow_monomers:
         print(clrs['y']+'\nMonomer/Protomer building option selected. Proceeding accordingly.'+clrs['n'])
-        seqres_hits = blast_protomer(fasta_file, seqres, args.max_candidates, 1, args.psiblast_threads, args.verbosity)
+        seqres_hits = blast_protomer(fasta_file, seqres, args.max_candidates, args.psiblast_iterations, args.psiblast_threads, args.psiblast_params, args.verbosity)
         if seqres_hits:
             for hit in seqres_hits:
                 hit_code, hit_chain = hit.split(':')
@@ -775,7 +779,7 @@ def analyze_protomer(input_file, report, args):
         if not args.skip_conservation:
             pctools.print_subsection('1[d]', 'Sequence conservation analysis')
             # Use PSI-BLAST to search UniRef50 and return hits
-            uni50hits = blast_protomer(fasta_file, uniref50, 50, 1, args.psiblast_threads, args.verbosity)
+            uni50hits = blast_protomer(fasta_file, uniref50, 50, 1, args.psiblast_threads, args.psiblast_params, args.verbosity)
             if not uni50hits:
                 print('PSI-BLAST found NO hits in Uniref50 database. Skipping conservation analysis.')
                 args.skip_conservation = True
@@ -859,7 +863,7 @@ def analyze_protomer(input_file, report, args):
         if not args.skip_conservation:
             pctools.print_subsection('1[d]', 'Sequence conservation analysis')
             # Use PSI-BLAST to search UniRef50 and return hits
-            uni50hits = blast_protomer(fasta_file, uniref50, 50, 1, args.psiblast_threads, args.verbosity)
+            uni50hits = blast_protomer(fasta_file, uniref50, 50, 1, args.psiblast_threads, args.psiblast_params, args.verbosity)
             if not uni50hits:
                 print('PSI-BLAST found NO hits in Uniref50 database. Skipping conservation analysis')
                 args.skip_conservation = True
