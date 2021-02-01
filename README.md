@@ -2,7 +2,7 @@
 description: Readme Imported from GitHub
 ---
 
-# ProtCHOIR
+# Quick Instructions
 
 [![https://raw.githubusercontent.com/monteirotorres/ProtCHOIR/master/ProtCHOIR/Contents/ProtCHOIR.svg?sanitize=true](https://raw.githubusercontent.com/monteirotorres/ProtCHOIR/master/ProtCHOIR/Contents/ProtCHOIR.svg?sanitize=true)](https://raw.githubusercontent.com/monteirotorres/ProtCHOIR/master/ProtCHOIR/Contents/ProtCHOIR.svg?sanitize=true) [![](https://camo.githubusercontent.com/6de4f94782584e14ca1f822b097a82daf81a32a0d00a237cc13bcca526bddabe/68747470733a2f2f7a656e6f646f2e6f72672f62616467652f3230353337323936322e737667)](https://zenodo.org/badge/latestdoi/205372962)
 
