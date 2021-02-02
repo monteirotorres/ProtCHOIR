@@ -30,4 +30,5 @@
 * [Make Oligomer](modules/make-oligomer.md)
 * [Analyse Oligomer](modules/analyse-oligomer.md)
 * [Update Databases](modules/update-databases.md)
+* [CHOIR Toolbox](modules/choir-toolbox.md)
 
