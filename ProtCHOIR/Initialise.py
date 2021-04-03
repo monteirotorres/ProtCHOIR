@@ -161,7 +161,7 @@ def argument_parsing():
                                      epilog=epilogue)
 
     parser.add_argument('--version', action='version',
-                    version='%(prog)s 1.2.16')
+                    version='%(prog)s 1.2.17')
 
     parser.add_argument('-f', '--file',
                         dest='input_file',

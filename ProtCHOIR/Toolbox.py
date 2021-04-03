@@ -2,8 +2,6 @@
 ###############################################################################
 import os
 import re
-import sys
-import time
 import gzip
 import shutil
 import jinja2
@@ -21,6 +19,7 @@ import Bio.PDB as bpp
 import itertools as it
 import matplotlib.pyplot as plt
 import xml.etree.ElementTree as et
+from datetime import datetime
 from matplotlib.lines import Line2D
 import Bio.PDB.Polypeptide as bpp_poly
 from ProtCHOIR.Initialise import *
@@ -175,6 +174,13 @@ def print_section(n, name):
           clrs['c']+str(name)+'\n' +
           clrs['y']+'+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+\n' +
           clrs['n'])
+    if name == "Runtime Arguments":
+        with open('CHOIR_Progress.out', 'w') as f:
+            f.write(datetime.now().strftime("%H:%M:%S")+": Starting new ProtCHOIR run\n")
+    else:
+        with open('CHOIR_Progress.out', 'a') as f:
+            f.write("\n"+datetime.now().strftime("%H:%M:%S")+": "+str(name)+"...\n")
+
 
 def section(n, name):
     '''
@@ -216,6 +222,8 @@ def print_subsection(n, name):
           clrs['c']+str(name)+'\n' +
           clrs['y']+'+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+\n' +
           clrs['n'])
+    with open('CHOIR_Progress.out', 'a') as f:
+        f.write(datetime.now().strftime("%H:%M:%S")+": "+str(name)+"...\n")
 
 
 def subsection(n, name):

@@ -99,6 +99,26 @@ def finalize(reports, input_basename, start_time, start_timestamp, args):
     nozip.append(summary_file)
     if 'exit' not in best_report:
         best_report['exit'] = '0'
+        with open('CHOIR_Progress.out', 'a') as f:
+            f.write(datetime.now().strftime("%H:%M:%S")+": Finished running ProtCHOIR!")
+    elif best_report['exit'] == '1':
+        with open('CHOIR_Progress.out', 'a') as f:
+            f.write(datetime.now().strftime("%H:%M:%S")+": ERROR! Indicated template not found in oligomers database...")
+    elif best_report['exit'] == '2':
+        with open('CHOIR_Progress.out', 'a') as f:
+            f.write(datetime.now().strftime("%H:%M:%S")+": ERROR! Failed to find suitable homologues...")
+    elif best_report['exit'] == '3':
+        with open('CHOIR_Progress.out', 'a') as f:
+            f.write(datetime.now().strftime("%H:%M:%S")+": ERROR! Failed to find suitable homo-oligomeri interfaces...")
+    elif best_report['exit'] == '4':
+        with open('CHOIR_Progress.out', 'a') as f:
+            f.write(datetime.now().strftime("%H:%M:%S")+": ERROR! No template had an average Q-score above cut-off...")
+    elif best_report['exit'] == '5':
+        with open('CHOIR_Progress.out', 'a') as f:
+            f.write(datetime.now().strftime("%H:%M:%S")+": ERROR! Failed to find templates in local databases...")
+    elif best_report['exit'] == '6':
+        with open('CHOIR_Progress.out', 'a') as f:
+            f.write(datetime.now().strftime("%H:%M:%S")+": ERROR! Sub-optimal alignment between template and target sequences...")
 
     with open(summary_file, 'w') as f:
         f.write('Input\tSeq.Mode\tTemplated\tLength\tTMSpans\tLikelyState\tH3OScore\tTemplate\tChains\tIdentity\tCoverage\tAv.QScore\tBestModel\tMolprobity\tRMSD\tQuality\tSurface\tInterfaces\tProtCHOIR\tRuntime\tExit\n')
@@ -229,6 +249,10 @@ def main():
             raise pctools.FileFormatError(clrs['r']+'\n\n Input format must be either pdb or fasta\n Run ./ProtCHOIR -h for more information\n\n'+clrs['n'])
         if args.allow_monomers:
             assert args.sequence_mode is True, clrs['r']+'\n\n To allow building monomers you must use sequence mode. \n Run ProtCHOIR -h for more information\n\n'+clrs['n']
+
+        # Start recording job progress
+        with open('CHOIR_Progress.out', 'w') as f:
+            f.write("Starting new ProtCHOIR run\n")
 
         # Pickle Runtime arguments
         pickle.dump(args, open('CHOIR_Args.pickle', 'wb'))
