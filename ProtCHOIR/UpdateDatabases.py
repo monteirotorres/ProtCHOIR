@@ -5,7 +5,8 @@ import re
 import sys
 import time
 import gzip
-import pickle
+#import pickle
+import pickle5 as pickle
 import shutil
 import parasail
 import traceback
@@ -14,7 +15,8 @@ import textwrap as tw
 from ProtCHOIR.Initialise import *
 import ProtCHOIR.Toolbox as pctools
 from progressbar import progressbar as pg
-
+from multiprocessing import Pool #python package for data parallelism
+from tqdm import tqdm #python package for progressbar
 # License
 ###############################################################################
 '''
@@ -248,7 +250,176 @@ def record_fasta(pdb_code, seqs, chain_ids, subfolder, type=None):
                 fasta_entry = '>'+pdb_code+':'+str(chain_id)+'\n'+wrapped_seq+'\n\n'
                 f.write(fasta_entry)
 
-def curate_homoDB(verbosity):
+#Function to wrap the populate_homodb function when using multiprocess with progressbar
+def populate_homodb_wrapper(arguments):
+    '''
+    Wraps the populate_dp function to preprocess all inputs and make sure that they are in the desired order
+    '''
+    return populate_homodb(arguments[0], arguments[1], arguments[2], arguments[3], arguments[4], arguments[5])
+
+#Function to populate the ProtCHOIR homodb database
+def populate_homodb(pdb, dat_file, verbosity, log_file, err_file, chain_correspondences):
+    '''
+    Populates the homodb database
+    '''
+    filename = pdb.split('/')[-1]
+    subfolder = pdb.split('/')[-2]
+    # Record assessment in dat file
+    with open(dat_file, 'a') as f:
+        f.write(filename+" "+str(time.time())+'\n')
+    # Start assession
+    pctools.printv('\nAssessing '+pdb+'...', verbosity)
+
+    # Reject files larger than 10Mb
+    if os.path.exists(pdb):
+        file_size = os.stat(pdb).st_size / 1048576
+    else:
+        return 'Error4' # if file does not exists thrown an error
+
+    pctools.printv('File size: '+clrs['c']+'{0:.1g}'.format(file_size)+' Mb'+clrs['n'], verbosity)
+    if file_size > 2:
+        pctools.printv(clrs['r']+"File size too large!"+clrs['n'], verbosity)
+        pctools.printv(clrs['y']+"Will try to fetch sequences from asymmetric unit."+clrs['n'], verbosity)
+        try:
+            alternative_pdb = os.path.join(pdb_archive, subfolder, 'pdb'+filename.split('.')[0]+'.ent.gz')
+            pdb_code, structure, nchains = pctools.parse_pdb_structure(alternative_pdb)
+            structure, chain_correspondences[pdb_code] = pctools.split_states(structure)
+            nchainspostsplit, seqs, chain_ids = pctools.extract_seqs(structure, 0)
+            # Write in fasta file
+            pctools.printv(clrs['y']+"Recording large-pdb sequence"+clrs['n'], verbosity)
+            record_fasta(pdb_code, seqs, chain_ids, subfolder, type='largepdb')
+        except:
+            pctools.printv(clrs['r']+"Failed to fetch sequence!"+clrs['n'], verbosity)
+        return 'Error1'
+
+    try:
+        pdb_code, structure, nchains = pctools.parse_pdb_structure(pdb)
+        pctools.printv('Number of chains in structure '+clrs['y']+pdb_code+clrs['n']+': '+str(nchains), verbosity)
+        # Reject structures with more than 60 chains
+        if int(nchains) > 60:
+            pctools.printv("Number of chains ("+clrs['y']+str(nchains)+clrs['n']+") larger than 60! "+clrs['r']+"Too many chains!"+clrs['n'], verbosity)
+            pctools.printv(clrs['y']+"Will try to fetch sequences anyway."+clrs['n'], verbosity)
+            try:
+                pdb_code, structure, nchains = pctools.parse_pdb_structure(pdb)
+                structure, chain_correspondences[pdb_code] = pctools.split_states(structure)
+                nchainspostsplit, seqs, chain_ids = pctools.extract_seqs(structure, 0)
+                pctools.printv(clrs['y']+"Recording large-pdb sequence"+clrs['n'], verbosity)
+                # Write in fasta file
+                record_fasta(pdb_code, seqs, chain_ids, subfolder, type='largepdb')
+            except:
+                pctools.printv(clrs['r']+"Failed to fetch sequence!"+clrs['n'], verbosity)
+            return 'Error2'
+
+        structure, chain_correspondences[pdb_code] = pctools.split_states(structure)
+        nchainspostsplit, seqs, chain_ids = pctools.extract_seqs(structure, 0)
+        pctools.printv('Number of chains ('+clrs['c']+str(nchains)+clrs['n']+') and file size ('+clrs['c']+str(file_size)+clrs['n']+') OK.'+clrs['g']+' Proceeding.'+clrs['n']+'\n', verbosity)
+        # Try to get info from the canonic pdb header (homonimous to pdb1)
+        canonpdb = "pdb"+pdb_code+".ent.gz"
+        try:
+            contents = pctools.parse_pdb_contents(os.path.join(pdb_archive, subfolder, canonpdb))[1]
+        except:
+            pctools.printv(clrs['r']+'\n\n Mismatch between pdb and biounit entries...'+clrs['n'], verbosity)
+        author, software = pctools.get_annotated_states(contents)
+        pctools.printv('Author determined biological unit = '+str(author), verbosity)
+        pctools.printv('Software determined quaternary structure= '+str(software), verbosity)
+        # Start assessing sequences and structures (from 2 up to 26 chains)
+        if 1 < int(nchains) < 61:
+            ids, proteinpair = pctools.get_pairwise_ids(seqs, nchains)
+            for id in ids:
+                if id[0] >= 90:
+                    color = clrs['g']
+                else:
+                    color = clrs['r']
+                pctools.printv('Identity between chains '+clrs['y']+str(id[1])+clrs['n']+' and '+clrs['y']+str(id[2])+clrs['n']+' is '+color+str(id[0])+"%"+clrs['n']+".", verbosity)
+            # Save records for pure homo-oligomers
+            if all(id[0] > 90 for id in ids) and proteinpair is True:
+                pctools.printv("All identities over 90%. Likely "+clrs['b']+"homo-oligomeric"+clrs['n']+".", verbosity)
+                pctools.printv(clrs['y']+"FETCHING"+clrs['n']+".\n", verbosity)
+                # Write file to database
+                newfile = os.path.join(pdb_homo_archive, subfolder, pdb_code+".pdb")
+                if not os.path.isdir(os.path.join(pdb_homo_archive, subfolder)):
+                    os.mkdir(os.path.join(pdb_homo_archive, subfolder))
+                io.set_structure(structure)
+                io.save(newfile)
+                pctools.gzip_pdb(newfile)
+                # Write to log file
+                with open(log_file, 'a') as f:
+                    f.write(str(pdb_code)+","+str(nchains)+","+'/'.join(author)+","+'/'.join(software)+","+str(os.path.getctime(newfile+'.gz'))+'\n')
+                # Write in fasta file
+                pctools.printv(clrs['y']+"Recording homo-oligomer sequence."+clrs['n'], verbosity)
+                record_fasta(pdb_code, seqs, chain_ids, subfolder, type='homo')
+
+            # Investigate partial homo-oligomers
+            elif any(id[0] > 90 for id in ids) and proteinpair is True:
+                at_least_one_interface = False
+                for id in ids:
+                    if id[0] > 90:
+                        # Check if similar chains share interfaces
+                        if pctools.check_interfaces(structure, id[1], id[2]):
+                            at_least_one_interface = True
+                            pctools.printv('Contacts found between chains '+clrs['g']+str(id[1])+clrs['n']+' and '+clrs['g']+str(id[2])+clrs['n']+' sharing '+clrs['g']+str(id[0])+clrs['n']+" % identity.", verbosity)
+                            pctools.printv("At least one putative "+clrs['b']+"homo-oligomeric "+clrs['n']+"interface found.", verbosity)
+                            pctools.printv(clrs['y']+"FETCHING"+clrs['n']+".\n", verbosity)
+                            # Write file to database
+                            newfile = os.path.join(pdb_homo_archive, subfolder, pdb_code+".pdb")
+                            if not os.path.isdir(os.path.join(pdb_homo_archive, subfolder)):
+                                os.mkdir(os.path.join(pdb_homo_archive, subfolder))
+                            io.set_structure(structure)
+                            io.save(newfile)
+                            pctools.gzip_pdb(newfile)
+                            # Write to log file
+                            with open(log_file, 'a') as f:
+                                f.write(str(pdb_code)+","+str(nchains)+","+'/'.join(author)+","+'/'.join(software)+","+str(os.path.getctime(newfile+'.gz'))+'\n')
+                            # Write in fasta file
+                            pctools.printv(clrs['y']+"Recording homo-oligomer sequence."+clrs['n'], verbosity)
+                            record_fasta(pdb_code, seqs, chain_ids, subfolder, type='homo')
+
+                            break
+                if at_least_one_interface is False:
+                    pctools.printv("No homo-oligomeric interface found. Likely "+clrs['r']+"hetero-oligomeric"+clrs['n']+".", verbosity)
+                    pctools.printv(clrs['y']+"Recording hetero-oligomer sequence"+clrs['n'], verbosity)
+                    # Write in fasta file
+                    record_fasta(pdb_code, seqs, chain_ids, subfolder, type='hetero')
+
+            elif proteinpair is False:
+                pctools.printv(clrs['r']+"No proteic chain pairs found"+clrs['n']+".", verbosity)
+                if any([set(seq[1]) != {'X'} for seq in seqs]):
+                    pctools.printv(clrs['y']+"Protein sequences found though"+clrs['n'], verbosity)
+                    pctools.printv(clrs['y']+"Recording hetero-oligomer sequence"+clrs['n'], verbosity)
+                    # Write in fasta file
+                    record_fasta(pdb_code, seqs, chain_ids, subfolder, type='hetero')
+                else:
+                    pctools.printv(clrs['r']+"Not even a single protein chain. Disregarding."+clrs['n'], verbosity)
+
+            else:
+                pctools.printv("No similar chains found. Likely "+clrs['r']+"hetero-oligomeric"+clrs['n']+".", verbosity)
+                pctools.printv(clrs['y']+"Recording hetero-oligomer sequence"+clrs['n'], verbosity)
+                record_fasta(pdb_code, seqs, chain_ids, subfolder, type='hetero')
+
+        elif int(nchains) == 1:
+            pctools.printv("Only one chain found. Likely "+clrs['r']+"monomeric"+clrs['n']+".", verbosity)
+            pctools.printv(clrs['y']+"Recording monomer sequence."+clrs['n'], verbosity)
+            structure, chain_correspondences[pdb_code] = pctools.split_states(structure)
+            nchains, seqs, chain_ids = pctools.extract_seqs(structure, 0)
+            record_fasta(pdb_code, seqs, chain_ids, subfolder, type='mono')
+
+    except:
+        errtype, errvalue, errtraceback = sys.exc_info()
+        errtypeshort = str(errtype).split('\'')[1]
+        pctools.printv(clrs['r']+'*'+str(errtypeshort)+': '+str(errvalue)+ ' l.'+str(errtraceback.tb_lineno)+'*'+clrs['n'], verbosity)
+        traceback.print_exception(*sys.exc_info())
+        if errtypeshort == 'KeyboardInterrupt':
+            quit()
+        #pctools.printv(clrs['r']+"UNKNOWN FAULT"+clrs['n']+".", verbosity)
+        if not os.path.isfile(err_file):
+            with open(err_file,'w+') as f:
+                pass
+        with open(err_file,'a') as f:
+            f.write(filename+'\n')
+        return 'Error3'
+    return filename
+
+def curate_homoDB(verbosity, multiprocess, available_cores):
     '''
     Creates homo-oligomeric database from a local pdb repsitory.
     The divided scheme adopted by RCSB, in which the subdirectories
@@ -261,11 +432,13 @@ def curate_homoDB(verbosity):
     '''
     # Create stats folder if does not exist
     stats_dir = os.path.join(pdb_homo_archive, 'stats')
+
     if not os.path.isdir(stats_dir):
         os.mkdir(stats_dir)
     # Compare latest assession with new files
     assession_log = read_latest_assession(stats_dir)
     new_files = list_new_files(pdb1_archive, assession_log, verbosity)
+
     print(clrs['g']+str(len(new_files))+clrs['n']+' new structure files were found and will be processed')
     now = str(time.strftime("%d-%m-%Y@%H.%M.%S"))
     dat_file = os.path.join(stats_dir, now+'-choirdb.dat')
@@ -293,158 +466,31 @@ def curate_homoDB(verbosity):
         chain_correspondences = {}
 
     # Main loop that will populate the ProtCHOIR database
-    for pdb in pg(new_files, widgets=widgets):
-        filename = pdb.split('/')[-1]
-        subfolder = pdb.split('/')[-2]
-        # Record assessment in dat file
-        with open(dat_file, 'a') as f:
-            f.write(filename+" "+str(time.time())+'\n')
-        # Start assession
-        pctools.printv('\nAssessing '+pdb+'...', verbosity)
-        # Reject files larger than 10Mb
-        file_size = os.stat(pdb).st_size / 1048576
-        pctools.printv('File size: '+clrs['c']+'{0:.1g}'.format(file_size)+' Mb'+clrs['n'], verbosity)
-        if file_size > 2:
-            pctools.printv(clrs['r']+"File size too large!"+clrs['n'], verbosity)
-            pctools.printv(clrs['y']+"Will try to fetch sequences from asymmetric unit."+clrs['n'], verbosity)
-            try:
-                alternative_pdb = os.path.join(pdb_archive, subfolder, 'pdb'+filename.split('.')[0]+'.ent.gz')
-                pdb_code, structure, nchains = pctools.parse_pdb_structure(alternative_pdb)
-                structure, chain_correspondences[pdb_code] = pctools.split_states(structure)
-                nchainspostsplit, seqs, chain_ids = pctools.extract_seqs(structure, 0)
-                # Write in fasta file
-                pctools.printv(clrs['y']+"Recording large-pdb sequence"+clrs['n'], verbosity)
-                record_fasta(pdb_code, seqs, chain_ids, subfolder, type='largepdb')
-            except:
-                pctools.printv(clrs['r']+"Failed to fetch sequence!"+clrs['n'], verbosity)
-            continue
+    if multiprocess is True: # if the multiprocess flag is on
+        pctools.printv(clrs['y']+'* Running the update with multiple processes.'+clrs['n'], verbosity)
 
-        try:
-            pdb_code, structure, nchains = pctools.parse_pdb_structure(pdb)
-            pctools.printv('Number of chains in structure '+clrs['y']+pdb_code+clrs['n']+': '+str(nchains), verbosity)
-            # Reject structures with more than 60 chains
-            if int(nchains) > 60:
-                pctools.printv("Number of chains ("+clrs['y']+str(nchains)+clrs['n']+") larger than 60! "+clrs['r']+"Too many chains!"+clrs['n'], verbosity)
-                pctools.printv(clrs['y']+"Will try to fetch sequences anyway."+clrs['n'], verbosity)
-                try:
-                    pdb_code, structure, nchains = pctools.parse_pdb_structure(pdb)
-                    structure, chain_correspondences[pdb_code] = pctools.split_states(structure)
-                    nchainspostsplit, seqs, chain_ids = pctools.extract_seqs(structure, 0)
-                    pctools.printv(clrs['y']+"Recording large-pdb sequence"+clrs['n'], verbosity)
-                    # Write in fasta file
-                    record_fasta(pdb_code, seqs, chain_ids, subfolder, type='largepdb')
-                except:
-                    pctools.printv(clrs['r']+"Failed to fetch sequence!"+clrs['n'], verbosity)
-                continue
+        total = len(new_files)
 
-            structure, chain_correspondences[pdb_code] = pctools.split_states(structure)
-            nchainspostsplit, seqs, chain_ids = pctools.extract_seqs(structure, 0)
-            pctools.printv('Number of chains ('+clrs['c']+str(nchains)+clrs['n']+') and file size ('+clrs['c']+str(file_size)+clrs['n']+') OK.'+clrs['g']+' Proceeding.'+clrs['n']+'\n', verbosity)
-            # Try to get info from the canonic pdb header (homonimous to pdb1)
-            canonpdb = "pdb"+pdb_code+".ent.gz"
-            try:
-                contents = pctools.parse_pdb_contents(os.path.join(pdb_archive, subfolder, canonpdb))[1]
-            except:
-                pctools.printv(clrs['r']+'\n\n Mismatch between pdb and biounit entries...'+clrs['n'], verbosity)
-            author, software = pctools.get_annotated_states(contents)
-            pctools.printv('Author determined biological unit = '+str(author), verbosity)
-            pctools.printv('Software determined quaternary structure= '+str(software), verbosity)
-            # Start assessing sequences and structures (from 2 up to 26 chains)
-            if 1 < int(nchains) < 61:
-                ids, proteinpair = pctools.get_pairwise_ids(seqs, nchains)
-                for id in ids:
-                    if id[0] >= 90:
-                        color = clrs['g']
-                    else:
-                        color = clrs['r']
-                    pctools.printv('Identity between chains '+clrs['y']+str(id[1])+clrs['n']+' and '+clrs['y']+str(id[2])+clrs['n']+' is '+color+str(id[0])+"%"+clrs['n']+".", verbosity)
-                # Save records for pure homo-oligomers
-                if all(id[0] > 90 for id in ids) and proteinpair is True:
-                    pctools.printv("All identities over 90%. Likely "+clrs['b']+"homo-oligomeric"+clrs['n']+".", verbosity)
-                    pctools.printv(clrs['y']+"FETCHING"+clrs['n']+".\n", verbosity)
-                    # Write file to database
-                    newfile = os.path.join(pdb_homo_archive, subfolder, pdb_code+".pdb")
-                    if not os.path.isdir(os.path.join(pdb_homo_archive, subfolder)):
-                        os.mkdir(os.path.join(pdb_homo_archive, subfolder))
-                    io.set_structure(structure)
-                    io.save(newfile)
-                    pctools.gzip_pdb(newfile)
-                    # Write to log file
-                    with open(log_file, 'a') as f:
-                        f.write(str(pdb_code)+","+str(nchains)+","+'/'.join(author)+","+'/'.join(software)+","+str(os.path.getctime(newfile+'.gz'))+'\n')
-                    # Write in fasta file
-                    pctools.printv(clrs['y']+"Recording homo-oligomer sequence."+clrs['n'], verbosity)
-                    record_fasta(pdb_code, seqs, chain_ids, subfolder, type='homo')
+        # Create a list to pass to the wrapper function
+        arguments=[]
+        for filename in new_files:
+            arguments.append((filename, dat_file, verbosity, log_file, err_file, chain_correspondences))
+        
+        # Make used cores the available cores -1 so that the user should not experience much lag (lower cap is 1)
+        cores = available_cores - 1 if (available_cores - 1 > 0) else 1
+        p = Pool(cores)
 
-                # Investigate partial homo-oligomers
-                elif any(id[0] > 90 for id in ids) and proteinpair is True:
-                    at_least_one_interface = False
-                    for id in ids:
-                        if id[0] > 90:
-                            # Check if similar chains share interfaces
-                            if pctools.check_interfaces(structure, id[1], id[2]):
-                                at_least_one_interface = True
-                                pctools.printv('Contacts found between chains '+clrs['g']+str(id[1])+clrs['n']+' and '+clrs['g']+str(id[2])+clrs['n']+' sharing '+clrs['g']+str(id[0])+clrs['n']+" % identity.", verbosity)
-                                pctools.printv("At least one putative "+clrs['b']+"homo-oligomeric "+clrs['n']+"interface found.", verbosity)
-                                pctools.printv(clrs['y']+"FETCHING"+clrs['n']+".\n", verbosity)
-                                # Write file to database
-                                newfile = os.path.join(pdb_homo_archive, subfolder, pdb_code+".pdb")
-                                if not os.path.isdir(os.path.join(pdb_homo_archive, subfolder)):
-                                    os.mkdir(os.path.join(pdb_homo_archive, subfolder))
-                                io.set_structure(structure)
-                                io.save(newfile)
-                                pctools.gzip_pdb(newfile)
-                                # Write to log file
-                                with open(log_file, 'a') as f:
-                                    f.write(str(pdb_code)+","+str(nchains)+","+'/'.join(author)+","+'/'.join(software)+","+str(os.path.getctime(newfile+'.gz'))+'\n')
-                                # Write in fasta file
-                                pctools.printv(clrs['y']+"Recording homo-oligomer sequence."+clrs['n'], verbosity)
-                                record_fasta(pdb_code, seqs, chain_ids, subfolder, type='homo')
+        # Perform the multi process
+        for _ in tqdm(p.imap_unordered(populate_homodb_wrapper, arguments), total=total, desc='Proteins processed'):
+            pass
 
-                                break
-                    if at_least_one_interface is False:
-                        pctools.printv("No homo-oligomeric interface found. Likely "+clrs['r']+"hetero-oligomeric"+clrs['n']+".", verbosity)
-                        pctools.printv(clrs['y']+"Recording hetero-oligomer sequence"+clrs['n'], verbosity)
-                        # Write in fasta file
-                        record_fasta(pdb_code, seqs, chain_ids, subfolder, type='hetero')
-
-                elif proteinpair is False:
-                    pctools.printv(clrs['r']+"No proteic chain pairs found"+clrs['n']+".", verbosity)
-                    if any([set(seq[1]) != {'X'} for seq in seqs]):
-                        pctools.printv(clrs['y']+"Protein sequences found though"+clrs['n'], verbosity)
-                        pctools.printv(clrs['y']+"Recording hetero-oligomer sequence"+clrs['n'], verbosity)
-                        # Write in fasta file
-                        record_fasta(pdb_code, seqs, chain_ids, subfolder, type='hetero')
-                    else:
-                        pctools.printv(clrs['r']+"Not even a single protein chain. Disregarding."+clrs['n'], verbosity)
-
-                else:
-                    pctools.printv("No similar chains found. Likely "+clrs['r']+"hetero-oligomeric"+clrs['n']+".", verbosity)
-                    pctools.printv(clrs['y']+"Recording hetero-oligomer sequence"+clrs['n'], verbosity)
-                    record_fasta(pdb_code, seqs, chain_ids, subfolder, type='hetero')
-
-            elif int(nchains) == 1:
-                pctools.printv("Only one chain found. Likely "+clrs['r']+"monomeric"+clrs['n']+".", verbosity)
-                pctools.printv(clrs['y']+"Recording monomer sequence."+clrs['n'], verbosity)
-                structure, chain_correspondences[pdb_code] = pctools.split_states(structure)
-                nchains, seqs, chain_ids = pctools.extract_seqs(structure, 0)
-                record_fasta(pdb_code, seqs, chain_ids, subfolder, type='mono')
-
-
-        except:
-            errtype, errvalue, errtraceback = sys.exc_info()
-            errtypeshort = str(errtype).split('\'')[1]
-            pctools.printv(clrs['r']+'*'+str(errtypeshort)+': '+str(errvalue)+ ' l.'+str(errtraceback.tb_lineno)+'*'+clrs['n'], verbosity)
-            traceback.print_exception(*sys.exc_info())
-            if errtypeshort == 'KeyboardInterrupt':
-                quit()
-            #pctools.printv(clrs['r']+"UNKNOWN FAULT"+clrs['n']+".", verbosity)
-            if not os.path.isfile(err_file):
-                with open(err_file,'w+') as f:
-                    pass
-            with open(err_file,'a') as f:
-                f.write(filename+'\n')
-            continue
+        p.close()
+        p.join()
+    else:
+        # If its not multiprocess will run exactly the same code as in ProtCHOIR's previous version
+        pctools.printv(clrs['y']+'* Running the update with a single process.'+clrs['n'], verbosity)
+        for pdb in pg(new_files, widgets=widgets):
+            populate_homodb(pdb, dat_file, verbosity, log_file, err_file, chain_correspondences)
 
     with open(chain_correspondences_file, 'wb') as p:
         pickle.dump(chain_correspondences, p, protocol=pickle.HIGHEST_PROTOCOL)
@@ -583,7 +629,7 @@ def update_gesamt(verbosity):
                         vflag])
 
 
-def update_databases(verbosity):
+def update_databases(verbosity, multiprocess, available_cores):
     '''
     Calls the four update functions sequentially (pdb, pdb1, ProtCHOIR, GESAMT)
     Called by: RunProtCHOIR.py:main()
@@ -591,19 +637,19 @@ def update_databases(verbosity):
     print('\n\nWill now update ALL databases.\n')
     create_directories()
     print('Updating PDB database...')
-    update_pdb(verbosity)
+    #update_pdb(verbosity)
     print('\n\nDone updating pdb!\n')
     print('Updating PDB1 database...')
-    update_pdb1(verbosity)
+    #update_pdb1(verbosity)
     print('\n\nDone updating pdb1!\n')
     print('Updating UniRef50 database...')
-    update_uniref(verbosity)
+    #update_uniref(verbosity)
     print('\n\nDone updating UniRef50!\n')
     print('Updating seqres database...')
-    update_seqres(verbosity)
+    #update_seqres(verbosity)
     print('\n\nDone updating seqres!\n')
     print('Curating ProtCHOIR database...')
-    curate_homoDB(verbosity)
+    curate_homoDB(verbosity, multiprocess, available_cores)
     print('\n\nDone Curating ProtCHOIR database!\n')
     print('Collecting fasta files...')
     collect_fasta(verbosity)
