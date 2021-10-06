@@ -199,6 +199,11 @@ def argument_parsing():
                         metavar='',
                         help='Determines the cut-off for similarity over protein stretches to still attempt modelling')
 
+    parser.add_argument('--local-alignment',
+                        dest='local_alignment',
+                        action='store_true', default=False,
+                        help='Determines whether to use local or global alignment. Default is Global.')
+
 
     parser.add_argument('--bad-stretches',
                         dest='bad_streches',
@@ -249,7 +254,7 @@ def argument_parsing():
                         type=str,
                         default='BLOSUM80-25-2',
                         metavar='',
-                        help='Number of threads to use for PSI-BLAST, defaults to the number of processors')
+                        help='Substitution Matrix and gap penalties used. Check help for all options.')
 
     parser.add_argument('--psiblast-threads',
                         dest='psiblast_threads',

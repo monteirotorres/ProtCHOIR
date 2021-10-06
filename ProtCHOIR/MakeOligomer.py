@@ -125,7 +125,7 @@ def restore_chain_identifiers(pdb_file, chains_dict, full_residue_mapping):
     return restored_chains_file
 
 
-def alignment_from_sequence(current_chain):
+def alignment_from_sequence(current_chain, args):
     output = []
     input_basename = os.path.basename(g_input_file).split('_CHOIR_MonomerSequence.fasta')[0]
     output.append('Running '+clrs['b']+'MODELLER'+clrs['n']+' to align '+clrs['y']+input_basename+clrs['n']+' to '+clrs['y']+best_oligo_template_code+clrs['n']+' - Chain '+clrs['y']+current_chain+clrs['n']+'...')
@@ -139,7 +139,11 @@ def alignment_from_sequence(current_chain):
         f.write("mdl = model(env, file='"+renamed_chains_file+"', model_segment=('FIRST:"+current_chain+"','LAST:"+current_chain+"'))\n")
         f.write("aln.append_model(mdl, align_codes='"+os.path.basename(renamed_chains_file)+"("+current_chain+")', atom_files='"+renamed_chains_file+"')\n")
         f.write("aln.append(file='"+g_input_file+"', align_codes='"+input_basename+"',alignment_format='FASTA', remove_gaps=False)\n")
-        f.write('aln.align2d()\n')
+        for i in range(0,3):
+            f.write("aln.salign(local_alignment="+str(args.local_alignment)+", improve_alignment=True, auto_overhang=True, rr_file = '${LIB}/blosum62.sim.mat', alignment_type='PAIRWISE', gap_penalties_1d=(-400, -1000)")
+            if args.local_alignment:
+                f.write(",matrix_offset = -450")
+            f.write(")\n")
         f.write("aln.write(file='"+temp_out+"', alignment_format='FASTA')")
     alignment_log = genali_file.replace('.py', '.log')
     spec = importlib.util.spec_from_file_location("genmodel", genali_file)
@@ -637,12 +641,12 @@ def make_oligomer(input_file, largest_oligo_complexes, report, args, residue_ind
     elif args.sequence_mode is True:
         if args.multiprocess is True:
             p = Pool()
-            for fasta_out, output in p.map_async(alignment_from_sequence, chains_dict.values()).get():
+            for fasta_out, output in p.starmap_async(alignment_from_sequence, zip(chains_dict.values(), itertools.repeat(args))).get():
                 alignment_files.append(fasta_out)
                 print(output)
         else:
             for current_chain in chains_dict.values():
-                fasta_out, output = alignment_from_sequence(current_chain)
+                fasta_out, output = alignment_from_sequence(current_chain, args)
                 alignment_files.append(fasta_out)
                 print(output)
     print('Alignment files:\n'+clrs['g']+('\n').join([os.path.basename(i) for i in alignment_files])+clrs['n'])
