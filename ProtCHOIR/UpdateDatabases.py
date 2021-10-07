@@ -475,7 +475,7 @@ def curate_homoDB(verbosity, multiprocess, available_cores):
         arguments=[]
         for filename in new_files:
             arguments.append((filename, dat_file, verbosity, log_file, err_file, chain_correspondences))
-        
+
         # Make used cores the available cores -1 so that the user should not experience much lag (lower cap is 1)
         cores = available_cores - 1 if (available_cores - 1 > 0) else 1
         p = Pool(cores)
@@ -499,6 +499,13 @@ def curate_homoDB(verbosity, multiprocess, available_cores):
         with open(err_file,'w+') as f:
             f.write('\nNo errors. Assessment terminated succesfully.\n')
 
+#Function to wrap the populate_homodb function when using multiprocess with progressbar
+def run_makeblastdb(argument):
+    '''
+    Runs the makeblastdb in parallel.
+    '''
+    subprocess.run(argument)
+    return
 
 def collect_fasta(verbosity):
     '''
@@ -583,25 +590,53 @@ def collect_fasta(verbosity):
                     fasta_entry = '>'+unique[0]+'\n'+wrapped_seq+'\n\n'
                     f.write(fasta_entry)
 
-    subprocess.run([makeblastdb_exe, '-in',
-                   largepdb_collected_fasta,
-                   '-dbtype', 'prot',
-                   '-out', os.path.join(seqdir, 'largedb')])
+    if multiprocess is True:
+        # Create a list to pass to the wrapper function
+        arguments=[
+                    [makeblastdb_exe, '-in',
+                       largepdb_collected_fasta,
+                       '-dbtype', 'prot',
+                       '-out', os.path.join(seqdir, 'largedb')],
+                    [makeblastdb_exe, '-in',
+                       mono_collected_fasta,
+                       '-dbtype', 'prot',
+                       '-out', os.path.join(seqdir, 'monodb')],
+                    [makeblastdb_exe, '-in',
+                       hetero_collected_fasta,
+                       '-dbtype', 'prot',
+                       '-out', os.path.join(seqdir, 'heterodb')],
+                    [makeblastdb_exe, '-in',
+                       homo_collected_fasta,
+                       '-dbtype', 'prot',
+                       '-out', os.path.join(seqdir, 'homodb')]
+                  ]
+        # Make used cores the available cores -1 so that the user should not experience much lag (lower cap is 1)
+        cores = (available_cores - 1 if available_cores - 1 < 4 else 4) if (available_cores - 1 > 0) else 1
 
-    subprocess.run([makeblastdb_exe, '-in',
-                   mono_collected_fasta,
-                   '-dbtype', 'prot',
-                   '-out', os.path.join(seqdir, 'monodb')])
+        with Pool(cores) as p:
+            # Perform the multi process
+            for _ in tqdm(p.imap_unordered(run_makeblastdb, arguments), total=4, desc='Blast databases processed'):
+                pass
+    else:
+        subprocess.run([makeblastdb_exe, '-in',
+                       largepdb_collected_fasta,
+                       '-dbtype', 'prot',
+                       '-out', os.path.join(seqdir, 'largedb')])
 
-    subprocess.run([makeblastdb_exe, '-in',
-                   hetero_collected_fasta,
-                   '-dbtype', 'prot',
-                   '-out', os.path.join(seqdir, 'heterodb')])
+        subprocess.run([makeblastdb_exe, '-in',
+                       mono_collected_fasta,
+                       '-dbtype', 'prot',
+                       '-out', os.path.join(seqdir, 'monodb')])
 
-    subprocess.run([makeblastdb_exe, '-in',
-                   homo_collected_fasta,
-                   '-dbtype', 'prot',
-                   '-out', os.path.join(seqdir, 'homodb')])
+        subprocess.run([makeblastdb_exe, '-in',
+                       hetero_collected_fasta,
+                       '-dbtype', 'prot',
+                       '-out', os.path.join(seqdir, 'heterodb')])
+
+        subprocess.run([makeblastdb_exe, '-in',
+                       homo_collected_fasta,
+                       '-dbtype', 'prot',
+                       '-out', os.path.join(seqdir, 'homodb')])
 
 
 def update_gesamt(verbosity):
