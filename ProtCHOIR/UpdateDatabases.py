@@ -505,9 +505,8 @@ def run_makeblastdb(argument):
     Runs the makeblastdb in parallel.
     '''
     subprocess.run(argument)
-    return
 
-def collect_fasta(verbosity):
+def collect_fasta(verbosity, multiprocess):
     '''
     Fetches fasta files in the pdb_homo_archive and creates a single fasta file
     within a "sequences" folder. For that, it checks the identity among the
@@ -687,7 +686,7 @@ def update_databases(verbosity, multiprocess, available_cores):
     curate_homoDB(verbosity, multiprocess, available_cores)
     print('\n\nDone Curating ProtCHOIR database!\n')
     print('Collecting fasta files...')
-    collect_fasta(verbosity)
+    collect_fasta(verbosity, multiprocess)
     print('\n\nDone collecting fasta files!\n')
     print('\n\nUpdating GESAMT archive...\n')
     update_gesamt(verbosity)
