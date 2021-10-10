@@ -192,7 +192,7 @@ def main():
               """))
         option = input('Do you confirm the information above? (y/n)')
         if option == 'y' or option == 'Y' or option == 'YES' or option == 'yes' or option == 'Yes':
-            update_databases(args.verbosity)
+            update_databases(args.verbosity, args.multiprocess, args.available_cores)
             print('\n\nDone updating all databases. Exiting.\n')
         else:
             print('\n\nNo positive confirmation, will not update databases.\n')
