@@ -13,7 +13,7 @@ import ProtCHOIR.Toolbox as pctools
 from Bio import SeqIO
 from multiprocessing import Pool
 from ProtCHOIR.Initialise import *
-from Bio.SubsMat import MatrixInfo
+from Bio.Align.substitution_matrices import MatrixInfo
 
 # LICENSE
 ###############################################################################

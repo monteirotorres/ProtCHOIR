@@ -179,7 +179,7 @@ def argument_parsing():
         epilog=epilogue,
     )
 
-    parser.add_argument("--version", action="version", version="%(prog)s 1.2.22")
+    parser.add_argument("--version", action="version", version="%(prog)s 1.2.23")
 
     parser.add_argument(
         "-f",
@@ -234,7 +234,7 @@ def argument_parsing():
         "--similarity-cutoff",
         dest="similarity_cutoff",
         type=float,
-        default=25,
+        default=30,
         metavar="",
         help="Determines the cut-off for similarity over protein stretches to still attempt modelling",
     )
@@ -605,6 +605,30 @@ widgets = [
     progressbar.AdaptiveETA(),
     ") ",
 ]
+
+aagroups = {
+    "C": "cys",
+    "D": "acidic",
+    "Q": "amidic",
+    "I": "hydrophobic",
+    "A": "hydrophobic",
+    "Y": "aromatic", 
+    "W": "aromatic",
+    "H": "basic",
+    "L": "hydrophobic",
+    "R": "basic",
+    "V": "hydrophobic",
+    "E": "acidic",
+    "F": "aromatic",
+    "G": "gly",
+    "M": "hydrophobic",
+    "N": "amidic",
+    "P": "pro",
+    "S": "hydroxylic",
+    "K": "basic",
+    "T": "hydroxylic",
+    "M": "hydrphobic",
+}
 
 aa3to1 = {
     "CYS": "C",
