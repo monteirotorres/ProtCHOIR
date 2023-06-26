@@ -2,7 +2,7 @@ biopython==1.74
 Jinja2==2.11.3
 matplotlib==3.1.1
 networkx==2.2
-numpy==1.16.2
+numpy==1.22.0
 pandas==0.24.2
 parasail==1.1.17
 progressbar2==3.42.0
