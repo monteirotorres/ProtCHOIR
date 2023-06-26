@@ -13,7 +13,7 @@ import ProtCHOIR.Toolbox as pctools
 from Bio import SeqIO
 from multiprocessing import Pool
 from ProtCHOIR.Initialise import *
-from Bio.Align.substitution_matrices import MatrixInfo
+import Bio.Align.substitution_matrices as sm
 
 # LICENSE
 ###############################################################################
@@ -494,9 +494,9 @@ def score_alignment(alignment_file):
     relative_scores = []
     for q_chain, t_chain in zip(trimmed_query_chains, trimmed_template_chains):
         pctools.printv('\nCalculating '+clrs['y']+'maximum scores'+clrs['n']+' for chain segments:', g_args.verbosity)
-        max_score, max_wscores = score_pairwise(t_chain, t_chain, MatrixInfo.blosum62, 0, 0)
+        max_score, max_wscores = score_pairwise(t_chain, t_chain, sm.load('BLOSUM62', 0, 0)
         pctools.printv('\nCalculating '+clrs['y']+'actual scores'+clrs['n']+' for chain segments:', g_args.verbosity)
-        score, wscores = score_pairwise(q_chain, t_chain, MatrixInfo.blosum62, 0, 0)
+        score, wscores = score_pairwise(q_chain, t_chain, sm.load('BLOSUM62'), 0, 0)
         relative_scores.append(round(score*100/max_score, 2))
 
         for max_wscore, wscore in zip(max_wscores, wscores):

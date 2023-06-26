@@ -179,7 +179,7 @@ def argument_parsing():
         epilog=epilogue,
     )
 
-    parser.add_argument("--version", action="version", version="%(prog)s 1.2.23")
+    parser.add_argument("--version", action="version", version="%(prog)s 1.2.24")
 
     parser.add_argument(
         "-f",
